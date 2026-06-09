@@ -1,0 +1,535 @@
+import React, { useState, useRef } from 'react';
+import { UserRegistry } from '../types';
+
+interface AuthPortalProps {
+  onLoginSuccess: (user: UserRegistry) => void;
+  initialRole?: 'student' | 'admin';
+  onClose?: () => void;
+}
+
+export default function AuthPortal({ onLoginSuccess, initialRole = 'student', onClose }: AuthPortalProps) {
+  const [role, setRole] = useState<'student' | 'admin'>(initialRole);
+  const [isRegister, setIsRegister] = useState(false);
+  
+  // Form values
+  const [fullname, setFullname] = useState('');
+  const [school, setSchool] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [categoryInterest, setCategoryInterest] = useState('UTBK SNBT');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
+  // Profile Photo State
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [photoName, setPhotoName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Password Visibility Eyes
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Status flags
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const tryoutCategories = [
+    "UTBK SNBT", "Kedinasan", "CPNS", "TNI / Polri", 
+    "BUMN", "PPPK", "Psikotes", "TKA Umum", 
+    "Bahasa Inggris (SD, SMP, SMA)", "Matematika (SD, SMP, SMA)", "Test Asesmen Nasional (AN)", "Test/Ujian Lainnya"
+  ];
+
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 3 * 1024 * 1024) {
+        setErrorMsg('Ukuran file foto terlalu besar! Maksimal batas ukuran adalah 3MB.');
+        return;
+      }
+      setPhotoName(file.name);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoUrl(reader.result as string);
+        setErrorMsg(''); // clear error if any
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!email || !password) {
+      setErrorMsg('Harap masukkan email/username dan kata sandi Anda!');
+      return;
+    }
+
+    if (role === 'admin') {
+      const isDefaultAdmin = (email.trim() === 'admin' || email.trim() === 'admin@katakita.id') && password === 'admin123';
+      
+      const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
+      const registeredAdmin = savedUsers.find(u => u.role === 'admin' && (u.email === email || u.fullname === email) && u.password === password);
+
+      if (isDefaultAdmin || registeredAdmin) {
+        setSuccessMsg('Masuk sebagai Administrator berhasil!');
+        const adminUser: UserRegistry = {
+          id: 'ADMIN-DEFAULT',
+          email: 'admin@katakita.id',
+          fullname: 'Administrator Pusat',
+          role: 'admin'
+        };
+        setTimeout(() => {
+          onLoginSuccess(adminUser);
+        }, 1000);
+      } else {
+        setErrorMsg('Autentikasi admin gagal! Username atau kata sandi pengajar salah.');
+      }
+    } else {
+      const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
+      const matchedUser = savedUsers.find(u => u.role === 'student' && u.email.toLowerCase() === email.toLowerCase());
+
+      if (!matchedUser) {
+        setErrorMsg('Akun siswa belum terdaftar! Silakan daftarkan akun baru di menu pendaftaran.');
+        return;
+      }
+
+      if (matchedUser.password !== password) {
+        setErrorMsg('Kata sandi salah! Harap periksa kembali penulisan karakter Anda.');
+        return;
+      }
+
+      setSuccessMsg(`Selamat datang kembali, ${matchedUser.fullname}!`);
+      setTimeout(() => {
+        onLoginSuccess(matchedUser);
+      }, 1000);
+    }
+  };
+
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (!fullname || !school || !email || !phone || !password || !confirmPassword) {
+      setErrorMsg('Harap lengkapi semua data pendaftaran, termasuk Asal Sekolah dan Nomor HP/WA Anda!');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMsg('Konfirmasi kata sandi tidak sesuai dengan kata sandi asli!');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg('Kata sandi harus minimal berpola 6 karakter demi pengamanan data.');
+      return;
+    }
+
+    const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
+    const isEmailTaken = savedUsers.some(u => u.email.toLowerCase() === email.toLowerCase() && u.role === role);
+
+    if (isEmailTaken) {
+      setErrorMsg('Alamat surel ini sudah terdaftar sebelumnya di sistem kami.');
+      return;
+    }
+
+    // Register user with base64 Profile Image!
+    const newUser: UserRegistry = {
+      id: `USER-${Math.floor(100000 + Math.random() * 900000)}`,
+      email: email.trim(),
+      fullname,
+      role,
+      categoryInterest,
+      password,
+      photoUrl: photoUrl || undefined, // Store the uploaded Base64 image
+      phone: phone.trim(),
+      school: school.trim()
+    };
+
+    const updatedUsers = [...savedUsers, newUser];
+    localStorage.setItem('katakita_users', JSON.stringify(updatedUsers));
+
+    setSuccessMsg('Daftar Akun Berhasil! Silakan masukkan email dan password yang Anda daftarkan tadi untuk masuk.');
+    
+    // Reset forms
+    setFullname('');
+    setSchool('');
+    setEmail('');
+    setPhone('');
+    setPassword('');
+    setConfirmPassword('');
+    setPhotoUrl('');
+    setPhotoName('');
+    
+    setTimeout(() => {
+      setIsRegister(false);
+      setSuccessMsg('');
+    }, 2800);
+  };
+
+  return (
+    <div className="max-w-md w-full bg-white rounded-3xl border border-slate-100 shadow-2xl overflow-hidden font-sans text-left transition-all duration-300 transform hover:scale-[1.005]" id="auth-portal-card">
+      
+      {/* Visual top banner */}
+      <div className="bg-gradient-to-r from-slate-900 to-slate-850 p-6 text-white text-center space-y-3 relative overflow-hidden">
+        {/* Glow decoration */}
+        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/20 rounded-full blur-xl"></div>
+        
+        <img 
+          src="https://bagus-supriyadi.biz.id/uploads/logo-bimbel-kata-kita-utbk-snbt.png" 
+          alt="Logo Bimbel" 
+          className="h-12 w-auto mx-auto object-contain bg-white/95 p-0.5 rounded-full shadow"
+        />
+        
+        <div className="space-y-0.5">
+          <h3 className="font-display font-black text-xl tracking-tight uppercase">Bimbel Kata Kita</h3>
+          <p className="text-[10px] text-orange-400 font-extrabold uppercase tracking-widest">Sistem CBT Terintegrasi</p>
+        </div>
+      </div>
+
+      {/* Tabs to select role dynamically */}
+      <div className="flex border-b border-slate-100 bg-slate-50">
+        <button
+          onClick={() => {
+            setRole('student');
+            setErrorMsg('');
+            setSuccessMsg('');
+            setIsRegister(false);
+          }}
+          className={`flex-1 py-3 text-center font-bold text-xs uppercase tracking-wider transition-all border-b-2 cursor-pointer flex items-center justify-center space-x-1 ${
+            role === 'student'
+              ? 'bg-white text-blue-600 border-blue-600 font-black'
+              : 'text-slate-400 border-transparent hover:text-slate-600'
+          }`}
+          id="role-tab-student"
+        >
+          <i className="fa-solid fa-graduation-cap"></i>
+          <span>Portal Siswa</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setRole('admin');
+            setErrorMsg('');
+            setSuccessMsg('');
+            setIsRegister(false);
+          }}
+          className={`flex-1 py-3 text-center font-bold text-xs uppercase tracking-wider transition-all border-b-2 cursor-pointer flex items-center justify-center space-x-1 ${
+            role === 'admin'
+              ? 'bg-white text-indigo-600 border-indigo-600 font-black'
+              : 'text-slate-400 border-transparent hover:text-slate-600'
+          }`}
+          id="role-tab-admin"
+        >
+          <i className="fa-solid fa-user-shield"></i>
+          <span>Akses Admin</span>
+        </button>
+      </div>
+
+      <div className="p-6 sm:p-8 space-y-6">
+        
+        {/* Welcome Text */}
+        <div className="text-center space-y-1">
+          <p className="text-xs text-slate-450 font-medium">
+            {role === 'student' 
+              ? (isRegister ? 'Buat akun Anda sekarang juga' : 'Masuk menggunakan detail pendaftaran Anda')
+              : 'Gunakan kredensial pengajar pusat Bimbel'
+            }
+          </p>
+        </div>
+
+        {/* Alerts status */}
+        {errorMsg && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded-lg text-xs font-semibold text-red-700 flex items-start space-x-1.5 animate-pulse" id="auth-error-alert">
+            <i className="fa-solid fa-triangle-exclamation text-red-500 mt-0.5 shrink-0"></i>
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="bg-emerald-50 border-l-4 border-emerald-500 p-3 rounded-lg text-xs font-semibold text-emerald-700 flex items-start space-x-1.5" id="auth-success-alert">
+            <i className="fa-solid fa-circle-check text-emerald-600 mt-0.5 shrink-0"></i>
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {/* Dynamic Frame panels */}
+        {!isRegister ? (
+          /* ================= MODERN LOGIN PANEL ================= */
+          <form onSubmit={handleLoginSubmit} className="space-y-4" id="login-form">
+            <div className="space-y-1.5 text-left">
+              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider flex items-center space-x-1">
+                <i className="fa-solid fa-envelope text-slate-400"></i>
+                <span>Alamat Email:</span>
+              </label>
+              <input
+                type={role === 'admin' ? "text" : "email"}
+                placeholder={role === 'admin' ? "Username admin" : "nama.siswa@gamil.com"}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 shadow-inner"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <div className="flex justify-between items-center bg-transparent">
+                <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider flex items-center space-x-1">
+                  <i className="fa-solid fa-lock text-slate-400"></i>
+                  <span>Kata Sandi:</span>
+                </label>
+              </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="******"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-4 pr-10 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 shadow-inner"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer focus:outline-none"
+                  tabIndex={-1}
+                >
+                  <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className={`w-full py-3 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all hover:scale-[1.01] cursor-pointer flex items-center justify-center space-x-2 ${
+                role === 'admin' 
+                  ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-900/15' 
+                  : 'bg-[#00705f] hover:bg-[#005a4d] shadow-teal-900/15'
+              }`}
+            >
+              <i className="fa-solid fa-right-to-bracket text-xs"></i>
+              <span>Masuk Sekarang</span>
+            </button>
+          </form>
+        ) : (
+          /* ================= REGISTER PANEL (Siswa with Profile Picture Support!) ================= */
+          <form onSubmit={handleRegisterSubmit} className="space-y-4" id="register-form">
+            
+            {/* 📸 INTERACTIVE PHOTO ACQUISITION COMPONENT */}
+            <div className="flex flex-col items-center justify-center space-y-2 py-1 bg-slate-50 border border-slate-200/50 rounded-2xl p-4 text-center" id="profile-picture-upload-section">
+              <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block">
+                Foto Siswa (Otomatis Muncul Di Sidebar)
+              </span>
+              
+              <div 
+                onClick={handlePhotoClick}
+                className="relative w-20 h-20 rounded-full border-2 border-dashed border-slate-300 hover:border-blue-500 bg-white flex flex-col items-center justify-center cursor-pointer overflow-hidden group transition-all"
+                title="Pilih file foto dari perangkat Anda"
+              >
+                {photoUrl ? (
+                  <img 
+                    src={photoUrl} 
+                    alt="Preview Foto" 
+                    className="w-full h-full object-cover rounded-full" 
+                  />
+                ) : (
+                  <div className="flex flex-col items-center space-y-1 text-slate-400">
+                    <i className="fa-solid fa-camera text-base group-hover:text-blue-500 transition-colors"></i>
+                    <span className="text-[8px] font-black uppercase tracking-wider">Pilih Foto</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-[8px] font-bold uppercase">
+                  Ubah Foto
+                </div>
+              </div>
+
+              <input 
+                type="file"
+                ref={fileInputRef}
+                onChange={handlePhotoChange}
+                accept="image/*"
+                className="hidden"
+              />
+
+              {photoName ? (
+                <span className="text-[9px] text-emerald-600 font-semibold truncate max-w-[220px]" title={photoName}>
+                  <i className="fa-solid fa-circle-check mr-1"></i> {photoName}
+                </span>
+              ) : (
+                <span className="text-[8px] text-slate-400 uppercase tracking-wide">
+                  Mendukung file JPG, PNG maks. 3MB
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider flex items-center space-x-1">
+                <i className="fa-solid fa-user text-slate-400"></i>
+                <span>Nama Lengkap Anda:</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Nama Lengkap Berdasarkan Ijazah/Identitas"
+                value={fullname}
+                onChange={(e) => setFullname(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider flex items-center space-x-1">
+                <i className="fa-solid fa-school text-slate-400"></i>
+                <span>Asal Sekolah:</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Contoh: SMAN 1 Jakarta"
+                value={school}
+                onChange={(e) => setSchool(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider flex items-center space-x-1">
+                <i className="fa-solid fa-phone text-slate-400 font-bold"></i>
+                <span>No. HP / WhatsApp:</span>
+              </label>
+              <input
+                type="tel"
+                placeholder="e.g. 081234567890"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider flex items-center space-x-1">
+                <i className="fa-solid fa-envelope text-slate-400"></i>
+                <span>Alamat Surel (Email):</span>
+              </label>
+              <input
+                type="email"
+                placeholder="kontak@gmail.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider flex items-center space-x-1">
+                <i className="fa-solid fa-lock text-slate-400"></i>
+                <span>Sandi Akun:</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Min. 6 karakter"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-4 pr-10 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer focus:outline-none"
+                  tabIndex={-1}
+                >
+                  <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider flex items-center space-x-1">
+                <i className="fa-solid fa-check text-slate-400"></i>
+                <span>Konfirmasi Sandi:</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Ketik ulang kata sandi"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full pl-4 pr-10 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer focus:outline-none"
+                  tabIndex={-1}
+                >
+                  <i className={`fa-solid ${showConfirmPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-950/20 transition-all hover:scale-[1.01] cursor-pointer"
+            >
+              <i className="fa-solid fa-user-plus mr-1"></i>
+              <span>Daftar Akun Baru</span>
+            </button>
+          </form>
+        )}
+
+        {/* Footer toggles */}
+        {role === 'student' && (
+          <div className="text-center pt-2 text-xs border-t border-slate-100">
+            {!isRegister ? (
+              <p className="text-slate-500">
+                Belum mendaftarkan akun siswa?{' '}
+                <button
+                  onClick={() => {
+                    setIsRegister(true);
+                    setErrorMsg('');
+                    setSuccessMsg('');
+                  }}
+                  className="text-blue-600 hover:underline font-extrabold cursor-pointer inline"
+                >
+                  Daftar Akun Baru
+                </button>
+              </p>
+            ) : (
+              <p className="text-slate-500">
+                Sudah memiliki akun pendaftaran?{' '}
+                <button
+                  onClick={() => {
+                    setIsRegister(false);
+                    setErrorMsg('');
+                    setSuccessMsg('');
+                  }}
+                  className="text-blue-600 hover:underline font-extrabold cursor-pointer inline"
+                >
+                  Masuk Sekarang
+                </button>
+              </p>
+            )}
+          </div>
+        )}
+
+        {role === 'admin' && (
+          <div className="text-center pt-3 text-[10px] text-slate-400 leading-relaxed font-bold italic bg-slate-50 p-2.5 rounded-xl border border-dashed border-slate-200">
+            <i className="fa-solid fa-circle-info mr-1.5 text-slate-400"></i>
+            <span>Gunakan kredensial admin kantor pusat untuk masuk ke Panel Kontrol.</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
