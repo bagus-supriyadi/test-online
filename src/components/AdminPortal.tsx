@@ -192,30 +192,31 @@ export default function AdminPortal({
   };
 
   const handleRefreshDB = () => {
-    const choice = safeConfirm(
-      "PILIHAN REFRESH DATABASE:\n\n" +
-      "Klik [OK] untuk MEMULIHKAN DATABASE KE DEFAULT (Mereset seluruh data ke data bawaan simulasi/mock).\n" +
-      "Klik [Batal] untuk hanya MEMUAT ULANG DATA dari Penyimpanan Lokal saat ini."
+    const confirmSave = safeConfirm(
+      "SIMPAN & UPDATE PERUBAHAN DATABASE:\n\n" +
+      "Klik [OK] untuk MENYIMPAN & MEMPERBARUI seluruh perubahan data terbaru Anda ke dalam penyimpanan lokal aplikasi.\n" +
+      "Klik [Batal] jika ingin membatalkan."
     );
 
-    if (choice) {
-      setQuestions(DEFAULT_QUESTIONS);
-      setPackages(DEFAULT_PACKAGES);
-      localStorage.setItem('katakita_questions', JSON.stringify(DEFAULT_QUESTIONS));
-      localStorage.setItem('katakita_packages', JSON.stringify(DEFAULT_PACKAGES));
-      safeAlert("Database Berhasil Direset & Dipulihkan ke Data Bawaan!");
-    } else {
-      const savedQ = localStorage.getItem('katakita_questions');
-      const savedP = localStorage.getItem('katakita_packages');
-      const savedUsers = localStorage.getItem('katakita_users');
-      const savedAtt = localStorage.getItem('katakita_student_attempts');
+    if (confirmSave) {
+      // Perform save of all current states to LocalStorage
+      localStorage.setItem('katakita_questions', JSON.stringify(questions));
+      localStorage.setItem('katakita_packages', JSON.stringify(packages));
+      localStorage.setItem('katakita_users', JSON.stringify(studentUsers));
+      localStorage.setItem('katakita_student_attempts', JSON.stringify(attempts));
+      localStorage.setItem('katakita_subtest_locks', JSON.stringify(subtestLocks));
+      localStorage.setItem('katakita_settings_banner', landingBannerText);
+      localStorage.setItem('katakita_settings_slogan', landingBannerSlogan);
+      
+      syncAdminDetails();
 
-      if (savedQ) setQuestions(JSON.parse(savedQ));
-      if (savedP) setPackages(JSON.parse(savedP));
-      if (savedUsers) setStudentUsers(JSON.parse(savedUsers));
-      if (savedAtt) setAttempts(JSON.parse(savedAtt));
+      // Trigger state updates to propagate changes across components
+      setQuestions([...questions]);
+      setPackages([...packages]);
+      setStudentUsers([...studentUsers]);
+      setAttempts([...attempts]);
 
-      safeAlert("Penyimpanan Database Berhasil di-Refresh Langsung dari LocalStorage!");
+      safeAlert("Sukses! Seluruh data perubahan terakhir berhasil diupdate, disimpan, dan disinkronisasikan ke dalam penyimpanan aplikasi (Database LocalStorage)!");
     }
   };
 
@@ -859,8 +860,8 @@ export default function AdminPortal({
               onClick={handleRefreshDB}
               className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-800 text-[10px] font-black rounded-lg cursor-pointer transition-all flex items-center space-x-1.5 border border-slate-200 shadow-sm"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Refresh DB</span>
+              <RefreshCw className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
+              <span>Simpan & Refresh DB</span>
             </button>
           </div>
         </header>

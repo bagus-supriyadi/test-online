@@ -1639,46 +1639,94 @@ export default function StudentPortal({
               </div>
 
               {/* Right Column: Top ranking */}
-              <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-150 space-y-4">
-                <h4 className="font-display font-black text-xs text-slate-850 tracking-wider uppercase text-amber-600">
-                  🏆 Top 3 Rangking Nasional Bimbel
-                </h4>
+              {(() => {
+                const allUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
+                const allAttemptsList: StudentAttempt[] = JSON.parse(localStorage.getItem('katakita_student_attempts') || '[]');
 
-                <div className="space-y-3 text-xs">
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-amber-500/5 border border-amber-200">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-black text-amber-500">🥇</span>
-                      <div>
-                        <p className="font-black text-slate-800">Muhammad Fatih Al-Fatih</p>
-                        <p className="text-[9px] text-slate-400">SMAN 1 Bandar Lampung</p>
-                      </div>
-                    </div>
-                    <span className="font-bold text-slate-800">902.5</span>
-                  </div>
+                // Group attempts by student/userId and get the highest finalScore
+                const studentScoresMap: { [userId: string]: { user: UserRegistry; maxScore: number } } = {};
 
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-150">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-black text-slate-400">🥈</span>
-                      <div>
-                        <p className="font-black text-slate-800">Jessica Amanda</p>
-                        <p className="text-[9px] text-slate-400">SMA Syafana Serpong</p>
-                      </div>
-                    </div>
-                    <span className="font-bold text-slate-800">874.2</span>
-                  </div>
+                allAttemptsList.forEach(attempt => {
+                  if (attempt.status === 'SUBMITTED' && typeof attempt.finalScore === 'number') {
+                    const user = allUsers.find(u => u.id === attempt.userId && u.role === 'student');
+                    if (user) {
+                      const currentMax = studentScoresMap[attempt.userId]?.maxScore || -1;
+                      if (attempt.finalScore > currentMax) {
+                        studentScoresMap[attempt.userId] = {
+                          user,
+                          maxScore: attempt.finalScore
+                        };
+                      }
+                    }
+                  }
+                });
 
-                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-150">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-black text-amber-700">🥉</span>
-                      <div>
-                        <p className="font-black text-slate-800">Bagus Supriyadi</p>
-                        <p className="text-[9px] text-slate-400">Siswa Teladan Kata Kita</p>
+                // Convert map to list and sort by score desc
+                const leaderboards = Object.values(studentScoresMap)
+                  .sort((a, b) => b.maxScore - a.maxScore)
+                  .slice(0, 3); // Get top 3
+
+                const medals = ['🥇', '🥈', '🥉'];
+
+                return (
+                  <div className="lg:col-span-4 bg-white p-5 rounded-2xl border border-slate-150 space-y-4">
+                    <h4 className="font-display font-black text-xs text-slate-850 tracking-wider uppercase text-amber-600 flex items-center space-x-1">
+                      <span>🏆 Top 3 Rangking Nasional Bimbel</span>
+                    </h4>
+
+                    {leaderboards.length === 0 ? (
+                      <div className="p-5 bg-slate-50 border border-slate-100 rounded-xl text-center space-y-2">
+                        <p className="text-slate-400 text-[11px] font-bold">Belum Ada Ranking Terdata</p>
+                        <p className="text-[10px] text-slate-400 leading-relaxed font-medium">Papan peringkat nasional akan muncul otomatis setelah pendaftar menyelesaikan simulasi Tryout mereka secara real-time.</p>
                       </div>
-                    </div>
-                    <span className="font-bold text-slate-800">845.0</span>
+                    ) : (
+                      <div className="space-y-3 text-xs">
+                        {leaderboards.map((leader, idx) => (
+                          <div 
+                            key={leader.user.id} 
+                            className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                              idx === 0 
+                                ? 'bg-amber-500/5 border-amber-200/60 shadow-sm shadow-amber-500/5' 
+                                : 'bg-slate-50/50 border-slate-150'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-2.5 min-w-0">
+                              <span className="text-base shrink-0 select-none">{medals[idx] || '🎖️'}</span>
+                              
+                              {/* Photo rendering */}
+                              {leader.user.photoUrl ? (
+                                <img 
+                                  src={leader.user.photoUrl} 
+                                  alt={leader.user.fullname} 
+                                  className="w-8 h-8 rounded-full object-cover shrink-0 border border-slate-200 shadow-sm animate-fade-in"
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none'; // Fallback to icon
+                                  }}
+                                />
+                              ) : null}
+                              
+                              {(!leader.user.photoUrl) && (
+                                <div className="w-8 h-8 rounded-full bg-[#00705f] text-white flex items-center justify-center font-bold text-xs shrink-0 select-none uppercase">
+                                  {leader.user.fullname.charAt(0)}
+                                </div>
+                              )}
+                              
+                              <div className="min-w-0">
+                                <p className="font-black text-slate-800 truncate leading-tight text-[11.5px]">{leader.user.fullname}</p>
+                                <p className="text-[9px] text-slate-400 font-medium truncate mt-0.5">{leader.user.school || 'Siswa Bimbel Kata Kita'}</p>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <span className="font-black text-slate-800 text-[11px] bg-slate-100 px-2 py-1 rounded-md">{leader.maxScore.toFixed(1)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              </div>
+                );
+              })()}
 
             </div>
           </div>

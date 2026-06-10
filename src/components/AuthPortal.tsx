@@ -174,22 +174,23 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
   };
 
   return (
-    <div className="max-w-md w-full bg-white rounded-3xl border border-slate-100 shadow-2xl overflow-hidden font-sans text-left transition-all duration-300 transform hover:scale-[1.005]" id="auth-portal-card">
+    <div className="max-w-md w-full bg-white rounded-3xl border border-slate-150 shadow-2xl overflow-hidden font-sans text-left transition-all duration-300 transform hover:scale-[1.005] ring-2 ring-black/5" id="auth-portal-card">
       
-      {/* Visual top banner */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-850 p-6 text-white text-center space-y-3 relative overflow-hidden">
+      {/* Visual top banner with beautiful, vibrant but premium gradient */}
+      <div className="bg-gradient-to-tr from-[#021f3d] via-[#005c4e] to-[#f26419] p-7 text-white text-center space-y-3 relative overflow-hidden">
         {/* Glow decoration */}
-        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/20 rounded-full blur-xl"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-400/25 rounded-full blur-2xl animate-pulse"></div>
+        <div className="absolute -bottom-8 -left-8 w-28 h-28 bg-[#10b981]/20 rounded-full blur-2xl"></div>
         
         <img 
           src="https://bagus-supriyadi.biz.id/uploads/logo-bimbel-kata-kita-utbk-snbt.png" 
           alt="Logo Bimbel" 
-          className="h-12 w-auto mx-auto object-contain bg-white/95 p-0.5 rounded-full shadow"
+          className="h-14 w-auto mx-auto object-contain bg-white/95 p-1 rounded-full shadow-lg border border-white/20 hover:rotate-6 transition-transform"
         />
         
-        <div className="space-y-0.5">
-          <h3 className="font-display font-black text-xl tracking-tight uppercase">Bimbel Kata Kita</h3>
-          <p className="text-[10px] text-orange-400 font-extrabold uppercase tracking-widest">Sistem CBT Terintegrasi</p>
+        <div className="space-y-1">
+          <h3 className="font-display font-black text-2xl tracking-tight uppercase text-amber-300">Bimbel Kata Kita</h3>
+          <p className="text-[10px] text-slate-100 font-extrabold uppercase tracking-widest bg-black/30 w-fit mx-auto px-2.5 py-0.5 rounded-full">Sistem CBT Terintegrasi & Pengawasan Riil</p>
         </div>
       </div>
 
@@ -322,29 +323,29 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
           <form onSubmit={handleRegisterSubmit} className="space-y-4" id="register-form">
             
             {/* 📸 INTERACTIVE PHOTO ACQUISITION COMPONENT */}
-            <div className="flex flex-col items-center justify-center space-y-2 py-1 bg-slate-50 border border-slate-200/50 rounded-2xl p-4 text-center" id="profile-picture-upload-section">
-              <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block">
-                Foto Siswa (Otomatis Muncul Di Sidebar)
+            <div className="flex flex-col items-center justify-center space-y-3 py-3 bg-gradient-to-tr from-slate-50 to-slate-100/70 border border-slate-150 rounded-2xl p-4 text-center shadow-inner" id="profile-picture-upload-section">
+              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest block font-display">
+                FOTO RESMI SISWA (DISARANKAN)
               </span>
               
               <div 
                 onClick={handlePhotoClick}
-                className="relative w-20 h-20 rounded-full border-2 border-dashed border-slate-300 hover:border-blue-500 bg-white flex flex-col items-center justify-center cursor-pointer overflow-hidden group transition-all"
+                className="relative w-24 h-24 rounded-full border-4 border-white ring-4 ring-orange-500/20 hover:ring-orange-500/40 bg-white flex flex-col items-center justify-center cursor-pointer overflow-hidden group transition-all shadow-md"
                 title="Pilih file foto dari perangkat Anda"
               >
                 {photoUrl ? (
                   <img 
                     src={photoUrl} 
                     alt="Preview Foto" 
-                    className="w-full h-full object-cover rounded-full" 
+                    className="w-full h-full object-cover" 
                   />
                 ) : (
                   <div className="flex flex-col items-center space-y-1 text-slate-400">
-                    <i className="fa-solid fa-camera text-base group-hover:text-blue-500 transition-colors"></i>
-                    <span className="text-[8px] font-black uppercase tracking-wider">Pilih Foto</span>
+                    <i className="fa-solid fa-cloud-arrow-up text-xl text-orange-500 group-hover:scale-110 transition-transform"></i>
+                    <span className="text-[8px] font-black uppercase tracking-widest leading-none mt-1">Unggah Foto</span>
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-[8px] font-bold uppercase">
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-[8px] font-black uppercase tracking-wide">
                   Ubah Foto
                 </div>
               </div>
@@ -358,12 +359,12 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
               />
 
               {photoName ? (
-                <span className="text-[9px] text-emerald-600 font-semibold truncate max-w-[220px]" title={photoName}>
-                  <i className="fa-solid fa-circle-check mr-1"></i> {photoName}
+                <span className="text-[9px] text-emerald-600 font-bold truncate max-w-[220px]" title={photoName}>
+                  <i className="fa-solid fa-circle-check mr-1 animate-pulse"></i> {photoName}
                 </span>
               ) : (
-                <span className="text-[8px] text-slate-400 uppercase tracking-wide">
-                  Mendukung file JPG, PNG maks. 3MB
+                <span className="text-[8px] text-slate-450 font-medium uppercase tracking-wide">
+                  Format JPG, PNG Maksimal Batas 3MB
                 </span>
               )}
             </div>
@@ -378,7 +379,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                 placeholder="Nama Lengkap Berdasarkan Ijazah/Identitas"
                 value={fullname}
                 onChange={(e) => setFullname(e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50"
+                className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 focus:bg-white"
                 required
               />
             </div>
@@ -393,7 +394,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                 placeholder="Contoh: SMAN 1 Jakarta"
                 value={school}
                 onChange={(e) => setSchool(e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50"
+                className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 focus:bg-white"
                 required
               />
             </div>
@@ -408,7 +409,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                 placeholder="e.g. 081234567890"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50"
+                className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 focus:bg-white"
                 required
               />
             </div>
@@ -423,7 +424,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                 placeholder="kontak@gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50"
+                className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 focus:bg-white"
                 required
               />
             </div>
@@ -439,7 +440,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                   placeholder="Min. 6 karakter"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-4 pr-10 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50"
+                  className="w-full pl-4 pr-10 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 focus:bg-white"
                   required
                 />
                 <button
@@ -464,7 +465,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                   placeholder="Ketik ulang kata sandi"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full pl-4 pr-10 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50"
+                  className="w-full pl-4 pr-10 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 focus:bg-white"
                   required
                 />
                 <button
@@ -480,9 +481,9 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
 
             <button
               type="submit"
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-950/20 transition-all hover:scale-[1.01] cursor-pointer"
+              className="w-full py-3.5 bg-gradient-to-r from-[#00705f] via-[#005a4d] to-orange-500 hover:opacity-95 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-teal-900/20 hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center justify-center space-x-1.5"
             >
-              <i className="fa-solid fa-user-plus mr-1"></i>
+              <i className="fa-solid fa-user-plus text-xs"></i>
               <span>Daftar Akun Baru</span>
             </button>
           </form>

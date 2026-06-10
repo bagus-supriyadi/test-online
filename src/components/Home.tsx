@@ -117,21 +117,25 @@ export default function Home({ onStartTryout, onSelectCategory }: HomeProps) {
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             
             {/* Left Column: Headings & Subtitles */}
-            <div className="lg:col-span-7 space-y-6 text-left">
+            <div className="lg:col-span-12 xl:col-span-7 space-y-6 text-left">
               {/* Special Badge from Image 1 */}
               <div className="inline-flex items-center bg-black/40 border border-white/10 px-4 py-1.5 rounded-full text-xs font-bold text-white tracking-wide shadow-sm" id="hero-badge">
-                <span className="w-2.5 h-2.5 rounded-full bg-orange-550 mr-2 shrink-0 animate-pulse"></span>
-                <span>Sistem Tryout Berstandar Nasional Terbaru - CBT Modern</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-500 mr-2 shrink-0 animate-pulse"></span>
+                <span>Pusat Simulasi Ujian CAT Terupdate, Akurat, & Terbukti Meloloskan Ribuan Peserta ke PTN Impian, CPNS, & Kedinasan!</span>
               </div>
 
               {/* Exact Main Text Heading from Image 1 */}
-              <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight" id="hero-title">
-                {localStorage.getItem('katakita_settings_banner') || "Raih Impian Akademik & Karir Anda Bersama"} <span className="text-orange-400">Bimbel Kata Kita</span>
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight" id="hero-title">
+                {localStorage.getItem('katakita_settings_banner') || (
+                  <>
+                    Jangan Cuma Bermimpi, <span className="text-orange-400">Garansi Sukses Sekali Tes!</span> Taklukkan UTBK, CPNS, & Kedinasan Bersama Bimbel Kata Kita
+                  </>
+                )}
               </h1>
 
               {/* Exact Description text from Image 1 */}
-              <p className="text-slate-200 text-xs sm:text-sm md:text-base leading-relaxed font-sans max-w-2xl" id="hero-description">
-                {localStorage.getItem('katakita_settings_slogan') || "Mempersiapkan diri menghadapi UTBK-SNBT, CPNS, Kedinasan, hingga TNI/Polri kini lebih realistis, terukur, dan presisi. Dilengkapi dengan simulasi waktu riil, pendeteksi keluar layar untuk integritas tinggi, dan pembahasan terlengkap."}
+              <p className="text-slate-100 text-sm sm:text-base leading-relaxed font-sans max-w-2xl font-semibold" id="hero-description">
+                {localStorage.getItem('katakita_settings_slogan') || "Satu-satunya sistem Computer Assisted Test (CAT) dengan akurasi prediksi kisi-kisi hingga 99.8%! Pecahkan rekor kelulusan Anda melalui simulasi Tryout Akbar berstandar nasional. Dilengkapi pendeteksi kecurangan real-time yang ketat, pembahasan detail super mendalam, bimbingan langsung mentor andalan, didukung atmosfer ruang belajar super nyaman!"}
               </p>
 
               {/* Action buttons from Image 1 */}
@@ -139,7 +143,7 @@ export default function Home({ onStartTryout, onSelectCategory }: HomeProps) {
                 <button
                   id="btn-hero-start-exam"
                   onClick={onStartTryout}
-                  className="px-6 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-extrabold rounded-xl shadow-lg shadow-orange-950/20 hover:scale-103 active:scale-95 transition-all flex items-center space-x-2 cursor-pointer text-xs sm:text-sm"
+                  className="px-6 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-extrabold rounded-xl shadow-lg shadow-orange-950/20 hover:scale-103 active:scale-95 transition-all flex items-center space-x-2 cursor-pointer text-xs sm:text-sm shadow-orange-500/20"
                 >
                   <span>Mulai Ujian Sekarang</span>
                   <i className="fa-solid fa-play text-xs"></i>
@@ -150,7 +154,7 @@ export default function Home({ onStartTryout, onSelectCategory }: HomeProps) {
                   href={waGroupLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-lg shadow-emerald-950/20 hover:scale-103 active:scale-95 transition-all flex items-center space-x-2 cursor-pointer text-xs sm:text-sm"
+                  className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-lg shadow-emerald-950/20 hover:scale-103 active:scale-95 transition-all flex items-center space-x-2 cursor-pointer text-xs sm:text-sm shadow-emerald-650/20"
                 >
                   <span>Gabung Ke Grup WA</span>
                   <i className="fa-brands fa-whatsapp text-sm"></i>
@@ -159,52 +163,84 @@ export default function Home({ onStartTryout, onSelectCategory }: HomeProps) {
             </div>
 
             {/* Right Column: Keunggulan Sistem Card from Image 1 */}
-            <div className="lg:col-span-5 w-full relative" id="hero-feature-card">
+            <div className="lg:col-span-12 xl:col-span-5 w-full relative space-y-4 animate-fade-in" id="hero-feature-card">
               {/* Dynamic Accreditation Badge on Top Right */}
-              <div className="absolute -top-3.5 -right-2 bg-orange-500 text-white font-extrabold text-[10px] uppercase px-3 py-1 rounded-xl tracking-wider shadow-lg shadow-orange-900/30 rotate-3 z-20">
+              <div className="absolute -top-3.5 -right-2 bg-orange-500 text-white font-extrabold text-[10px] uppercase px-3 py-1 rounded-xl tracking-wider shadow-lg shadow-orange-900/30 rotate-3 z-30">
                 Akreditasi Nasional
               </div>
 
-              {/* Glassmorphic premium features card */}
-              <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 p-6 md:p-8 shadow-2xl relative text-left" id="advantages-glass-plate">
-                <div className="flex items-center space-x-2.5 mb-5 border-b border-white/10 pb-3">
-                  <i className="fa-solid fa-chart-column text-orange-400 text-lg sm:text-xl"></i>
-                  <h3 className="font-display font-black text-white text-base sm:text-lg tracking-wide">
-                    Keunggulan Sistem
-                  </h3>
+              {/* Unique Tryout Akbar Live Action Image with Official Logo Overlay */}
+              <div className="relative group overflow-hidden rounded-2xl border-2 border-white/20 shadow-2xl bg-slate-900/40 transition-all duration-300">
+                <img 
+                  src="/src/assets/images/tryout_akbar_live_action_1781063573763.png"
+                  alt="Suasana Pelaksanaan Tryout Akbar Nyaman & Kondusif"
+                  className="w-full h-auto object-cover rounded-xl group-hover:scale-103 transition-all duration-700"
+                  referrerPolicy="no-referrer"
+                />
+                
+                {/* Embedded Official Logo Brand Header Overlay (using their exact logo url) */}
+                <div className="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-md rounded-xl p-2 border border-white/10 flex items-center space-x-2 shadow-lg z-20 max-w-[210px] sm:max-w-xs">
+                  <img 
+                    src="https://bagus-supriyadi.biz.id/uploads/logo-bimbel-kata-kita-utbk-snbt.png" 
+                    alt="Logo Resmi Bimbel Kata Kita" 
+                    className="w-8 h-8 sm:w-10 sm:h-10 object-contain bg-white rounded-full p-0.5 border border-amber-400"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="text-left">
+                    <h4 className="text-[9px] sm:text-[10px] font-black text-amber-300 uppercase tracking-tight leading-none">
+                      Bimbel Kata Kita
+                    </h4>
+                    <span className="text-[7px] sm:text-[8px] text-white font-bold leading-tight block mt-0.5">
+                      Pelaksanaan Tryout Akbar
+                    </span>
+                  </div>
                 </div>
 
-                <div className="space-y-4">
-                  {/* Row 1 */}
-                  <div className="flex items-start space-x-3">
-                    <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
-                      <i className="fa-solid fa-award text-sm"></i>
+                {/* Ambient dynamic caption with details at bottom */}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent flex flex-col justify-end p-4 pt-12 text-left">
+                  <div className="flex items-center space-x-1.5 text-amber-400 font-bold text-[8.5px] uppercase mb-1 bg-black/60 px-2.5 py-0.5 rounded w-fit">
+                    <i className="fa-solid fa-graduation-cap text-[9px] animate-pulse"></i>
+                    <span>Siswa-Siswi Usia 16-18 Tahun</span>
+                  </div>
+                  <p className="text-[10.5px] text-slate-100 font-semibold leading-normal text-left">
+                    Suasana nyaman & tertib di gedung serbaguna berfasilitas lengkap. Didukung tryout berkala, soal kisi-kisi akurat, dan bimbingan tutor andal.
+                  </p>
+                </div>
+              </div>
+
+              {/* Glassmorphic premium features card */}
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 p-4 shadow-2xl text-left" id="advantages-glass-plate">
+                <div className="grid grid-cols-3 gap-3">
+                  {/* Item 1 */}
+                  <div className="flex items-center space-x-2 border-r border-white/10 pr-1">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+                      <i className="fa-solid fa-award text-xs"></i>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-350 font-bold block">Tingkat Kelulusan</span>
-                      <span className="text-xs font-black text-white">92.4% Siswa Lolos UTBK/CPNS</span>
+                      <span className="text-[8px] text-slate-350 font-black block uppercase tracking-wide">LULUS</span>
+                      <span className="text-[10px] font-black text-white">92.4%</span>
                     </div>
                   </div>
 
-                  {/* Row 2 */}
-                  <div className="flex items-start space-x-3">
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-                      <i className="fa-solid fa-circle-check text-sm"></i>
+                  {/* Item 2 */}
+                  <div className="flex items-center space-x-2 border-r border-white/10 pr-1">
+                    <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                      <i className="fa-solid fa-circle-check text-xs"></i>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-350 font-bold block">Kesesuaian Kisi-kisi</span>
-                      <span className="text-xs font-black text-white">100% Mengikuti Standar Baku</span>
+                      <span className="text-[8px] text-slate-350 font-black block uppercase tracking-wide">KISI-KISI</span>
+                      <span className="text-[10px] font-black text-white">100%</span>
                     </div>
                   </div>
 
-                  {/* Row 3 */}
-                  <div className="flex items-start space-x-3">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                      <i className="fa-solid fa-shield-halved text-sm"></i>
+                  {/* Item 3 */}
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                      <i className="fa-solid fa-shield-halved text-xs"></i>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-350 font-bold block">Integritas Tinggi</span>
-                      <span className="text-xs font-black text-white">Sistem Deteksi Tab-Switch Pintar</span>
+                      <span className="text-[8px] text-slate-350 font-black block uppercase tracking-wide">SISTEM</span>
+                      <span className="text-[10px] font-black text-white">Anti-Cheat</span>
                     </div>
                   </div>
                 </div>
