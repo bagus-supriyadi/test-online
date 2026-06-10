@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { UserRegistry } from '../types';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 
 interface AuthPortalProps {
@@ -62,7 +62,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     }
   };
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -75,12 +75,25 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     if (role === 'admin') {
       const isDefaultAdmin = (email.trim() === 'admin' || email.trim() === 'admin@katakita.id') && password === 'admin123';
       
-      const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
-      const registeredAdmin = savedUsers.find(u => u.role === 'admin' && (u.email === email || u.fullname === email) && u.password === password);
+      let registeredAdmin: UserRegistry | undefined = undefined;
+      try {
+        const q = query(collection(db, 'users'), where('role', '==', 'admin'), where('email', '==', email.trim()));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          registeredAdmin = snap.docs[0].data() as UserRegistry;
+        }
+      } catch (err) {
+        console.warn("Direct Firestore admin look-up failed, falling back to local registry:", err);
+      }
 
-      if (isDefaultAdmin || registeredAdmin) {
+      if (!registeredAdmin) {
+        const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
+        registeredAdmin = savedUsers.find(u => u.role === 'admin' && (u.email.toLowerCase() === email.toLowerCase() || u.fullname.toLowerCase() === email.toLowerCase()) && u.password === password);
+      }
+
+      if (isDefaultAdmin || (registeredAdmin && registeredAdmin.password === password)) {
         setSuccessMsg('Masuk sebagai Administrator berhasil!');
-        const adminUser: UserRegistry = {
+        const adminUser: UserRegistry = registeredAdmin || {
           id: 'ADMIN-DEFAULT',
           email: 'admin@katakita.id',
           fullname: 'Administrator Pusat',
@@ -93,8 +106,21 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
         setErrorMsg('Autentikasi admin gagal! Username atau kata sandi pengajar salah.');
       }
     } else {
-      const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
-      const matchedUser = savedUsers.find(u => u.role === 'student' && u.email.toLowerCase() === email.toLowerCase());
+      let matchedUser: UserRegistry | undefined = undefined;
+      try {
+        const q = query(collection(db, 'users'), where('role', '==', 'student'), where('email', '==', email.trim()));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          matchedUser = snap.docs[0].data() as UserRegistry;
+        }
+      } catch (err) {
+        console.warn("Direct Firestore student look-up failed, falling back to local list:", err);
+      }
+
+      if (!matchedUser) {
+        const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
+        matchedUser = savedUsers.find(u => u.role === 'student' && u.email.toLowerCase() === email.toLowerCase());
+      }
 
       if (!matchedUser) {
         setErrorMsg('Akun siswa belum terdaftar! Silakan daftarkan akun baru di menu pendaftaran.');
