@@ -569,6 +569,11 @@ export default function StudentPortal({
       console.error(e);
     }
 
+    // Save student attempt to Firestore for global real-time synchronization
+    setDoc(doc(db, 'attempts', newAttempt.id), newAttempt).catch((err) => {
+      console.error("Failed to sync new student attempt to Firestore:", err);
+    });
+
     setTriggerUpdate((prev) => prev + 1);
     setActiveCBT(null);
   };

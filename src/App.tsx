@@ -78,19 +78,15 @@ export default function App() {
         const unsubPkgs = onSnapshot(collection(db, 'packages'), (snap) => {
           const list: ExamPackage[] = [];
           snap.forEach(docSnap => list.push(docSnap.data() as ExamPackage));
-          if (list.length > 0) {
-            setPackages(list);
-            localStorage.setItem('katakita_packages', JSON.stringify(list));
-          }
+          setPackages(list);
+          localStorage.setItem('katakita_packages', JSON.stringify(list));
         });
 
         const unsubQs = onSnapshot(collection(db, 'questions'), (snap) => {
           const list: Question[] = [];
           snap.forEach(docSnap => list.push(docSnap.data() as Question));
-          if (list.length > 0) {
-            setQuestions(list);
-            localStorage.setItem('katakita_questions', JSON.stringify(list));
-          }
+          setQuestions(list);
+          localStorage.setItem('katakita_questions', JSON.stringify(list));
         });
 
         const unsubLocks = onSnapshot(collection(db, 'locks'), (snap) => {
@@ -271,8 +267,16 @@ export default function App() {
 
   const handleSetPackagesByAdmin = async (newPackages: React.SetStateAction<ExamPackage[]>) => {
     const resolvedPackages = typeof newPackages === 'function' ? newPackages(packages) : newPackages;
+    const oldPackages = packages;
     setPackages(resolvedPackages);
     try {
+      // Find deleted packages and delete them on Firestore
+      const deletedPkgs = oldPackages.filter(op => !resolvedPackages.some(rp => rp.id === op.id));
+      for (const p of deletedPkgs) {
+        await deleteDoc(doc(db, 'packages', p.id));
+      }
+
+      // Update/Insert the remaining packages on Firestore
       for (const p of resolvedPackages) {
         await setDoc(doc(db, 'packages', p.id), p);
       }
@@ -283,8 +287,16 @@ export default function App() {
 
   const handleSetQuestionsByAdmin = async (newQuestions: React.SetStateAction<Question[]>) => {
     const resolvedQuestions = typeof newQuestions === 'function' ? newQuestions(questions) : newQuestions;
+    const oldQuestions = questions;
     setQuestions(resolvedQuestions);
     try {
+      // Find deleted questions and delete them on Firestore
+      const deletedQs = oldQuestions.filter(oq => !resolvedQuestions.some(rq => rq.id === oq.id));
+      for (const q of deletedQs) {
+        await deleteDoc(doc(db, 'questions', q.id));
+      }
+
+      // Update/Insert the remaining questions on Firestore
       for (const q of resolvedQuestions) {
         await setDoc(doc(db, 'questions', q.id), q);
       }

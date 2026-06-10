@@ -73,11 +73,12 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     }
 
     if (role === 'admin') {
-      const isDefaultAdmin = (email.trim() === 'admin' || email.trim() === 'admin@katakita.id') && password === 'admin123';
+      const emailLower = email.toLowerCase().trim();
+      const isDefaultAdmin = (emailLower === 'admin' || emailLower === 'admin@katakita.id') && password === 'admin123';
       
       let registeredAdmin: UserRegistry | undefined = undefined;
       try {
-        const q = query(collection(db, 'users'), where('role', '==', 'admin'), where('email', '==', email.trim()));
+        const q = query(collection(db, 'users'), where('role', '==', 'admin'), where('email', '==', emailLower));
         const snap = await getDocs(q);
         if (!snap.empty) {
           registeredAdmin = snap.docs[0].data() as UserRegistry;
@@ -88,7 +89,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
 
       if (!registeredAdmin) {
         const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
-        registeredAdmin = savedUsers.find(u => u.role === 'admin' && (u.email.toLowerCase() === email.toLowerCase() || u.fullname.toLowerCase() === email.toLowerCase()) && u.password === password);
+        registeredAdmin = savedUsers.find(u => u.role === 'admin' && (u.email.toLowerCase() === emailLower || u.fullname.toLowerCase() === emailLower) && u.password === password);
       }
 
       if (isDefaultAdmin || (registeredAdmin && registeredAdmin.password === password)) {
@@ -106,9 +107,10 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
         setErrorMsg('Autentikasi admin gagal! Username atau kata sandi pengajar salah.');
       }
     } else {
+      const emailLower = email.toLowerCase().trim();
       let matchedUser: UserRegistry | undefined = undefined;
       try {
-        const q = query(collection(db, 'users'), where('role', '==', 'student'), where('email', '==', email.trim()));
+        const q = query(collection(db, 'users'), where('role', '==', 'student'), where('email', '==', emailLower));
         const snap = await getDocs(q);
         if (!snap.empty) {
           matchedUser = snap.docs[0].data() as UserRegistry;
@@ -119,7 +121,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
 
       if (!matchedUser) {
         const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
-        matchedUser = savedUsers.find(u => u.role === 'student' && u.email.toLowerCase() === email.toLowerCase());
+        matchedUser = savedUsers.find(u => u.role === 'student' && u.email.toLowerCase() === emailLower);
       }
 
       if (!matchedUser) {
@@ -139,7 +141,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     }
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -159,18 +161,30 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
       return;
     }
 
+    const emailLower = email.toLowerCase().trim();
     const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
-    const isEmailTaken = savedUsers.some(u => u.email.toLowerCase() === email.toLowerCase() && u.role === role);
-
-    if (isEmailTaken) {
-      setErrorMsg('Alamat surel ini sudah terdaftar sebelumnya di sistem kami.');
-      return;
+    
+    // Real-time unique email check from Firestore across all devices!
+    try {
+      const q = query(collection(db, 'users'), where('email', '==', emailLower));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        setErrorMsg('Alamat surel ini sudah terdaftar sebelumnya di sistem kami oleh pengguna lain.');
+        return;
+      }
+    } catch (err) {
+      console.warn("Firestore unique email check failed, falling back to local memory:", err);
+      const isEmailTaken = savedUsers.some(u => u.email.toLowerCase() === emailLower);
+      if (isEmailTaken) {
+        setErrorMsg('Alamat surel ini sudah terdaftar sebelumnya di sistem kami.');
+        return;
+      }
     }
 
     // Register user with base64 Profile Image!
     const newUser: UserRegistry = {
       id: `USER-${Math.floor(100000 + Math.random() * 900000)}`,
-      email: email.trim(),
+      email: emailLower,
       fullname,
       role,
       categoryInterest,
@@ -181,7 +195,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     };
 
     // Save directly to Firestore users collection
-    setDoc(doc(db, 'users', newUser.id), newUser).catch((err) => {
+    await setDoc(doc(db, 'users', newUser.id), newUser).catch((err) => {
       console.error("Firestore user registration failed:", err);
     });
 
