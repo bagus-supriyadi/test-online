@@ -39,6 +39,10 @@ export default function App() {
     const saved = localStorage.getItem('katakita_student_attempts');
     return saved ? JSON.parse(saved) : [];
   });
+  const [studentUsers, setStudentUsers] = useState<UserRegistry[]>(() => {
+    const saved = localStorage.getItem('katakita_users');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [locks, setLocks] = useState<{ [packageId: string]: boolean }>(() => {
     const initialLocks: { [key: string]: boolean } = {};
     DEFAULT_PACKAGES.forEach(p => {
@@ -110,6 +114,7 @@ export default function App() {
         const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
           const list: UserRegistry[] = [];
           snap.forEach(docSnap => list.push(docSnap.data() as UserRegistry));
+          setStudentUsers(list);
           localStorage.setItem('katakita_users', JSON.stringify(list));
         });
 
@@ -343,6 +348,8 @@ export default function App() {
             onStartExam={(id) => setActiveExamId(id)}
             questions={questions}
             onLogout={handleLogout}
+            allAttempts={attempts}
+            studentUsers={studentUsers}
           />
         );
       case 'admin':
@@ -370,6 +377,8 @@ export default function App() {
             }}
             attempts={attempts}
             setAttempts={handleSetAttemptsByAdmin}
+            studentUsers={studentUsers}
+            setStudentUsers={setStudentUsers}
           />
         );
       case 'auth-student':

@@ -12,6 +12,8 @@ interface StudentPortalProps {
   questions?: Question[];
   onStartExam: (packageId: string) => void;
   onLogout: () => void;
+  allAttempts?: StudentAttempt[];
+  studentUsers?: UserRegistry[];
 }
 
 interface ActiveCBTState {
@@ -322,7 +324,9 @@ export default function StudentPortal({
   attempts,
   questions = [],
   onStartExam,
-  onLogout
+  onLogout,
+  allAttempts,
+  studentUsers
 }: StudentPortalProps) {
   const [activeSubTab, setActiveSubTab] = useState<'home' | 'cbt' | 'stats' | 'profile'>('home');
   const [portalTheme, setPortalTheme] = useState<ThemeKey>(() => {
@@ -1647,8 +1651,8 @@ export default function StudentPortal({
 
               {/* Right Column: Top ranking */}
               {(() => {
-                const allUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
-                const allAttemptsList: StudentAttempt[] = JSON.parse(localStorage.getItem('katakita_student_attempts') || '[]');
+                const allUsers: UserRegistry[] = studentUsers !== undefined ? studentUsers : JSON.parse(localStorage.getItem('katakita_users') || '[]');
+                const allAttemptsList: StudentAttempt[] = allAttempts !== undefined ? allAttempts : JSON.parse(localStorage.getItem('katakita_student_attempts') || '[]');
 
                 // Group attempts by student/userId and get the highest finalScore
                 const studentScoresMap: { [userId: string]: { user: UserRegistry; maxScore: number } } = {};

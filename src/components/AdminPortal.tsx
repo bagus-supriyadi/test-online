@@ -26,6 +26,8 @@ interface AdminPortalProps {
   onStartExam?: (packageId: string) => void;
   attempts?: StudentAttempt[];
   setAttempts?: React.Dispatch<React.SetStateAction<StudentAttempt[]>>;
+  studentUsers?: UserRegistry[];
+  setStudentUsers?: React.Dispatch<React.SetStateAction<UserRegistry[]>>;
 }
 
 const GRADIENTS = [
@@ -48,7 +50,9 @@ export default function AdminPortal({
   onLogout,
   onStartExam,
   attempts: propAttempts,
-  setAttempts: propSetAttempts
+  setAttempts: propSetAttempts,
+  studentUsers: propStudentUsers,
+  setStudentUsers: propSetStudentUsers
 }: AdminPortalProps) {
   const [activeTab, setActiveTab] = useState<string>('kunci_paket');
   const [themeAccent, setThemeAccent] = useState<string>(() => {
@@ -134,10 +138,13 @@ export default function AdminPortal({
     return saved ? JSON.parse(saved) : {};
   });
 
-  const [studentUsers, setStudentUsers] = useState<UserRegistry[]>(() => {
+  const [localStudentUsers, setLocalStudentUsers] = useState<UserRegistry[]>(() => {
     const saved = localStorage.getItem('katakita_users');
     return saved ? JSON.parse(saved) : [];
   });
+
+  const studentUsers = propStudentUsers !== undefined && propSetStudentUsers !== undefined ? propStudentUsers : localStudentUsers;
+  const setStudentUsers = propStudentUsers !== undefined && propSetStudentUsers !== undefined ? propSetStudentUsers : setLocalStudentUsers;
 
   const [localAttempts, setLocalAttempts] = useState<StudentAttempt[]>(() => {
     const saved = localStorage.getItem('katakita_student_attempts');
