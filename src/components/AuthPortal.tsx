@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { UserRegistry } from '../types';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface AuthPortalProps {
   onLoginSuccess: (user: UserRegistry) => void;
@@ -151,6 +153,11 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
       phone: phone.trim(),
       school: school.trim()
     };
+
+    // Save directly to Firestore users collection
+    setDoc(doc(db, 'users', newUser.id), newUser).catch((err) => {
+      console.error("Firestore user registration failed:", err);
+    });
 
     const updatedUsers = [...savedUsers, newUser];
     localStorage.setItem('katakita_users', JSON.stringify(updatedUsers));

@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "UserRegistry": {
+      "title": "User Registry",
+      "description": "Represents student and admin accounts in the system.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique user ID" },
+        "email": { "type": "string", "description": "Email address" },
+        "fullname": { "type": "string", "description": "Full name" },
+        "role": { "type": "string", "description": "Role of user: admin or student" },
+        "categoryInterest": { "type": "string", "description": "Exam category of interest" },
+        "password": { "type": "string", "description": "Account password" },
+        "photoUrl": { "type": "string", "description": "Base64 encoded or URL of photo" },
+        "school": { "type": "string", "description": "Origin school" },
+        "phone": { "type": "string", "description": "Phone number" }
+      },
+      "required": ["id", "email", "fullname", "role", "password"]
+    },
+    "ExamPackage": {
+      "title": "Exam Package",
+      "description": "An exam package containing subtests.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique package ID" },
+        "title": { "type": "string", "description": "Package title" },
+        "description": { "type": "string", "description": "Brief description" },
+        "category": { "type": "string", "description": "Package category (e.g., UTBK SNBT)" },
+        "duration": { "type": "number", "description": "Duration in minutes" },
+        "isPremium": { "type": "boolean", "description": "Whether package is premium locked" },
+        "totalQuestions": { "type": "number", "description": "Total question count" }
+      },
+      "required": ["id", "title", "category", "duration", "totalQuestions"]
+    },
+    "Question": {
+      "title": "Exam Question",
+      "description": "Single multiple-choice question belonging to an exam.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique question ID" },
+        "examId": { "type": "string", "description": "Target package ID" },
+        "subExamName": { "type": "string", "description": "Subtest subject name" },
+        "questionText": { "type": "string", "description": "The question body text" },
+        "options": { "type": "object", "description": "Options dictionary A-E" },
+        "correctOption": { "type": "string", "description": "Correct key, A-E" },
+        "explanation": { "type": "string", "description": "Answer explanation" }
+      },
+      "required": ["id", "examId", "subExamName", "questionText", "correctOption"]
+    },
+    "StudentAttempt": {
+      "title": "Student Attempt",
+      "description": "A submitted student exam scoring attempt.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique attempt ID" },
+        "examId": { "type": "string", "description": "Package ID associated with" },
+        "examTitle": { "type": "string", "description": "Exam Title" },
+        "studentName": { "type": "string", "description": "Full name of student" },
+        "studentEmail": { "type": "string", "description": "Email of student" },
+        "score": { "type": "number", "description": "Percentage score 0-100" },
+        "correctAnswers": { "type": "number", "description": "Number of correct answers" },
+        "totalQuestions": { "type": "number", "description": "Total questions in test" },
+        "submittedAt": { "type": "string", "description": "ISO timestamp" },
+        "category": { "type": "string", "description": "Category of the package" },
+        "userId": { "type": "string", "description": "Owner student ID" }
+      },
+      "required": ["id", "examId", "studentEmail", "score", "userId"]
+    },
+    "AppSetting": {
+      "title": "App Setting",
+      "properties": {
+        "id": { "type": "string" },
+        "banner": { "type": "string" },
+        "slogan": { "type": "string" },
+        "waGroupLink": { "type": "string" }
+      },
+      "required": ["id"]
+    },
+    "SubtestLock": {
+      "title": "Subtest Lock",
+      "properties": {
+        "packageId": { "type": "string" },
+        "isPremium": { "type": "boolean" }
+      },
+      "required": ["packageId", "isPremium"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserRegistry",
+      "description": "User registry data for login validation"
+    },
+    "/packages/{packageId}": {
+      "schema": "ExamPackage",
+      "description": "Information about specific exam packages"
+    },
+    "/questions/{questionId}": {
+      "schema": "Question",
+      "description": "Database of questions for various exams"
+    },
+    "/attempts/{attemptId}": {
+      "schema": "StudentAttempt",
+      "description": "Scored attempts submitted by student users"
+    },
+    "/settings/{settingId}": {
+      "schema": "AppSetting",
+      "description": "General administrator configurable parameters"
+    },
+    "/locks/{lockId}": {
+      "schema": "SubtestLock",
+      "description": "Active package lock and unlock configurations"
+    }
+  }
+}

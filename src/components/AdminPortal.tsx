@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import * as XLSX from 'xlsx';
 import * as mammoth from 'mammoth';
 import { ExamPackage, Question, UserRegistry, StudentAttempt } from '../types';
@@ -675,27 +677,46 @@ export default function AdminPortal({
   const [editSPhone, setEditSPhone] = useState<string>('');
   const [editSPass, setEditSPass] = useState<string>('');
 
-  const handleSaveStudentAccountChange = () => {
+  const handleSaveStudentAccountChange = async () => {
     if (!editingStudentId) return;
+    const studentToUpdate = studentUsers.find(s => s.id === editingStudentId);
+    if (!studentToUpdate) return;
+
+    const revisedStudent = {
+      ...studentToUpdate,
+      fullname: editSName,
+      school: editSSchool,
+      email: editSMail,
+      phone: editSPhone,
+      password: editSPass
+    };
+
     setStudentUsers(prev => {
-      const u = prev.map(s => {
-        if (s.id === editingStudentId) {
-          return { ...s, fullname: editSName, school: editSSchool, email: editSMail, phone: editSPhone, password: editSPass };
-        }
-        return s;
-      });
+      const u = prev.map(s => s.id === editingStudentId ? revisedStudent : s);
       localStorage.setItem('katakita_users', JSON.stringify(u));
       return u;
     });
+
+    try {
+      await setDoc(doc(db, 'users', editingStudentId), revisedStudent);
+    } catch (err) {
+      console.error("Firestore user edit failed:", err);
+    }
+
     alert("Profil Akun Siswa Berhasil Diperbarui!");
     setEditingStudentId(null);
   };
 
-  const handleDeleteStudentAccount = (id: string) => {
+  const handleDeleteStudentAccount = async (id: string) => {
     if (safeConfirm("Apakah anda yakin menghapus akun siswa ini?")) {
       const rest = studentUsers.filter(s => s.id !== id);
       setStudentUsers(rest);
       localStorage.setItem('katakita_users', JSON.stringify(rest));
+      try {
+        await deleteDoc(doc(db, 'users', id));
+      } catch (err) {
+        console.error("Firestore user deletion failed:", err);
+      }
     }
   };
 

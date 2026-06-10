@@ -11,6 +11,8 @@ import AdminPortal from './components/AdminPortal';
 
 import { ExamPackage, Question, StudentAttempt, UserRegistry } from './types';
 import { DEFAULT_PACKAGES, DEFAULT_QUESTIONS } from './data/sampleQuestions';
+import { collection, doc, onSnapshot, setDoc, getDocs, deleteDoc } from 'firebase/firestore';
+import { db } from './firebase';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('home');
@@ -24,7 +26,7 @@ export default function App() {
   const userRole = currentUser?.role || 'student';
   const [activeExamId, setActiveExamId] = useState<string | null>(null);
 
-  // Core Data States
+  // Core Data States with defaults till loaded from Firestore
   const [packages, setPackages] = useState<ExamPackage[]>(() => {
     const saved = localStorage.getItem('katakita_packages');
     return saved ? JSON.parse(saved) : DEFAULT_PACKAGES;
@@ -33,17 +35,10 @@ export default function App() {
     const saved = localStorage.getItem('katakita_questions');
     return saved ? JSON.parse(saved) : DEFAULT_QUESTIONS;
   });
-
-  // Sync state changes to storage
-  useEffect(() => {
-    localStorage.setItem('katakita_packages', JSON.stringify(packages));
-  }, [packages]);
-
-  useEffect(() => {
-    localStorage.setItem('katakita_questions', JSON.stringify(questions));
-  }, [questions]);
-  
-  // Premium lock status mapping
+  const [attempts, setAttempts] = useState<StudentAttempt[]>(() => {
+    const saved = localStorage.getItem('katakita_student_attempts');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [locks, setLocks] = useState<{ [packageId: string]: boolean }>(() => {
     const initialLocks: { [key: string]: boolean } = {};
     DEFAULT_PACKAGES.forEach(p => {
@@ -52,16 +47,91 @@ export default function App() {
     return initialLocks;
   });
 
-  // Load student attempts from localStorage for persistence
-  const [attempts, setAttempts] = useState<StudentAttempt[]>(() => {
-    const saved = localStorage.getItem('katakita_student_attempts');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // Save attempts to localStorage on changes
+  // Real-time synchronization layer with Firestore (seeding + subscribing)
   useEffect(() => {
-    localStorage.setItem('katakita_student_attempts', JSON.stringify(attempts));
-  }, [attempts]);
+    const initializeAndSubscribe = async () => {
+      try {
+        // Seed default packages if empty on Cloud DB
+        const pkgsSnap = await getDocs(collection(db, 'packages'));
+        if (pkgsSnap.empty) {
+          console.log('Database empty! Seeding default packages to Firestore...');
+          for (const p of DEFAULT_PACKAGES) {
+            await setDoc(doc(db, 'packages', p.id), p);
+          }
+          for (const q of DEFAULT_QUESTIONS) {
+            await setDoc(doc(db, 'questions', q.id), q);
+          }
+          for (const p of DEFAULT_PACKAGES) {
+            await setDoc(doc(db, 'locks', p.id), { packageId: p.id, isPremium: p.isPremium || false });
+          }
+        }
+      } catch (err) {
+        console.warn('Silent fallback: Not yet configured or seed failed or read limits reached:', err);
+      }
+
+      // Realtime listeners
+      try {
+        const unsubPkgs = onSnapshot(collection(db, 'packages'), (snap) => {
+          const list: ExamPackage[] = [];
+          snap.forEach(docSnap => list.push(docSnap.data() as ExamPackage));
+          if (list.length > 0) {
+            setPackages(list);
+            localStorage.setItem('katakita_packages', JSON.stringify(list));
+          }
+        });
+
+        const unsubQs = onSnapshot(collection(db, 'questions'), (snap) => {
+          const list: Question[] = [];
+          snap.forEach(docSnap => list.push(docSnap.data() as Question));
+          if (list.length > 0) {
+            setQuestions(list);
+            localStorage.setItem('katakita_questions', JSON.stringify(list));
+          }
+        });
+
+        const unsubLocks = onSnapshot(collection(db, 'locks'), (snap) => {
+          const list: { [key: string]: boolean } = {};
+          snap.forEach(docSnap => {
+            const d = docSnap.data();
+            list[d.packageId] = d.isPremium;
+          });
+          setLocks(prev => ({ ...prev, ...list }));
+          localStorage.setItem('katakita_subtest_locks', JSON.stringify(list));
+        });
+
+        const unsubAttempts = onSnapshot(collection(db, 'attempts'), (snap) => {
+          const list: StudentAttempt[] = [];
+          snap.forEach(docSnap => list.push(docSnap.data() as StudentAttempt));
+          list.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+          setAttempts(list);
+          localStorage.setItem('katakita_student_attempts', JSON.stringify(list));
+        });
+
+        const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
+          const list: UserRegistry[] = [];
+          snap.forEach(docSnap => list.push(docSnap.data() as UserRegistry));
+          localStorage.setItem('katakita_users', JSON.stringify(list));
+        });
+
+        return () => {
+          unsubPkgs();
+          unsubQs();
+          unsubLocks();
+          unsubAttempts();
+          unsubUsers();
+        };
+      } catch (subErr) {
+        console.error('Snapshot listener subscription error:', subErr);
+      }
+    };
+
+    let unsubscriberPromise = initializeAndSubscribe();
+    return () => {
+      unsubscriberPromise.then(cleanup => {
+        if (cleanup) cleanup();
+      });
+    };
+  }, []);
 
   // Auth Operations
   const handleLoginSuccess = (user: UserRegistry) => {
@@ -82,15 +152,21 @@ export default function App() {
   };
 
   // Toggle package lock
-  const handleToggleLock = (packageId: string) => {
+  const handleToggleLock = async (packageId: string) => {
+    const nextVal = !locks[packageId];
     setLocks((prev) => ({
       ...prev,
-      [packageId]: !prev[packageId]
+      [packageId]: nextVal
     }));
+    try {
+      await setDoc(doc(db, 'locks', packageId), { packageId, isPremium: nextVal });
+    } catch (err) {
+      console.error("Failed to update lock on Firestore:", err);
+    }
   };
 
   // Submit test scoring
-  const handleExamSubmit = (newAttempt: Omit<StudentAttempt, 'id'>) => {
+  const handleExamSubmit = async (newAttempt: Omit<StudentAttempt, 'id'>) => {
     const completedAttempt: StudentAttempt = {
       ...newAttempt,
       id: `ATTEMPT-${Math.floor(100000 + Math.random() * 900000)}`
@@ -99,10 +175,17 @@ export default function App() {
     setAttempts((prev) => [completedAttempt, ...prev]);
     setActiveExamId(null);
     setActiveTab('tryouts'); // Shifts view back to dashboard to view results
+
+    // Save directly to Firestore for global access
+    try {
+      await setDoc(doc(db, 'attempts', completedAttempt.id), completedAttempt);
+    } catch (err) {
+      console.error("Failed to write student attempt to Firestore:", err);
+    }
   };
 
   // Callback to simulate importing spreadsheet questions (dynamically adds 2 questions)
-  const handleImportSpreadsheetQuestions = () => {
+  const handleImportSpreadsheetQuestions = async () => {
     const extraQuestions: Question[] = [
       {
         id: "Q-SHEET-01",
@@ -132,39 +215,94 @@ export default function App() {
           E: "Sebagian ASN di Lampung berhak memihak salah satu kandidat politik secara terbuka."
         },
         correctOption: "B",
-        explanation: "Karena sebagian pengajar adalah ASN, dan seluruh ASN wajib netral, maka sebagian pengajar tersebut otomatis wajib netral."
+        explanation: "Because sebagian pengajar is ASN, and all ASN has to be neutral, then sebagian pengajar is netral."
       }
     ];
 
-    setQuestions((prev) => {
-      const exists = prev.some(q => q.id === "Q-SHEET-01");
-      if (exists) return prev;
-      return [...prev, ...extraQuestions];
-    });
+    try {
+      // 1. Write the questions to Firestore
+      for (const q of extraQuestions) {
+        await setDoc(doc(db, 'questions', q.id), q);
+      }
 
-    // Update package counts in UI
-    setPackages((prev) => {
-      return prev.map(p => {
+      setQuestions((prev) => {
+        const exists = prev.some(q => q.id === "Q-SHEET-01");
+        if (exists) return prev;
+        return [...prev, ...extraQuestions];
+      });
+
+      // 2. Adjust package total questions and write updated packages to Firestore
+      const pkgsToUpdate = packages.map(p => {
         if (p.id === "PKG-UTBK" || p.id === "PKG-CPNS") {
           return { ...p, totalQuestions: p.totalQuestions + 1 };
         }
         return p;
       });
-    });
+
+      for (const p of pkgsToUpdate) {
+        await setDoc(doc(db, 'packages', p.id), p);
+      }
+
+      setPackages(pkgsToUpdate);
+    } catch (err) {
+      console.error("Firestore error importing spreadsheet questions:", err);
+    }
+  };
+  const handleAddCustomQuestion = async (newQ: Question) => {
+    try {
+      // 1. Save question to Firestore
+      await setDoc(doc(db, 'questions', newQ.id), newQ);
+
+      // 2. Update package count in Firestore
+      const targetPkg = packages.find(p => p.id === newQ.examId);
+      if (targetPkg) {
+        const updatedPkg = { ...targetPkg, totalQuestions: targetPkg.totalQuestions + 1 };
+        await setDoc(doc(db, 'packages', targetPkg.id), updatedPkg);
+      }
+    } catch (err) {
+      console.error("Firestore error adding custom question:", err);
+    }
   };
 
-  const handleAddCustomQuestion = (newQ: Question) => {
-    setQuestions((prev) => [...prev, newQ]);
-    
-    // Update package counts in UI
-    setPackages((prev) => {
-      return prev.map(p => {
-        if (p.id === newQ.examId) {
-          return { ...p, totalQuestions: p.totalQuestions + 1 };
+  const handleSetPackagesByAdmin = async (newPackages: React.SetStateAction<ExamPackage[]>) => {
+    const resolvedPackages = typeof newPackages === 'function' ? newPackages(packages) : newPackages;
+    setPackages(resolvedPackages);
+    try {
+      for (const p of resolvedPackages) {
+        await setDoc(doc(db, 'packages', p.id), p);
+      }
+    } catch (err) {
+      console.error("Failed to sync packages update to Firestore:", err);
+    }
+  };
+
+  const handleSetQuestionsByAdmin = async (newQuestions: React.SetStateAction<Question[]>) => {
+    const resolvedQuestions = typeof newQuestions === 'function' ? newQuestions(questions) : newQuestions;
+    setQuestions(resolvedQuestions);
+    try {
+      for (const q of resolvedQuestions) {
+        await setDoc(doc(db, 'questions', q.id), q);
+      }
+    } catch (err) {
+      console.error("Failed to sync questions update to Firestore:", err);
+    }
+  };
+
+  const handleSetAttemptsByAdmin = async (newAttempts: React.SetStateAction<StudentAttempt[]>) => {
+    const resolvedAttempts = typeof newAttempts === 'function' ? newAttempts(attempts) : newAttempts;
+    setAttempts(resolvedAttempts);
+    try {
+      const existingSnap = await getDocs(collection(db, 'attempts'));
+      for (const docSpec of existingSnap.docs) {
+        const id = docSpec.id;
+        const existsInNew = resolvedAttempts.some(ra => ra.id === id);
+        if (!existsInNew) {
+          await deleteDoc(doc(db, 'attempts', id));
         }
-        return p;
-      });
-    });
+      }
+    } catch (err) {
+      console.error("Failed to delete attempts on Firestore:", err);
+    }
   };
 
   // Redirect to a specific category filter on TryoutDashboard
@@ -218,11 +356,11 @@ export default function App() {
         return (
           <AdminPortal
             packages={packages}
-            setPackages={setPackages}
+            setPackages={handleSetPackagesByAdmin}
             locks={locks}
             onToggleLock={handleToggleLock}
             questions={questions}
-            setQuestions={setQuestions}
+            setQuestions={handleSetQuestionsByAdmin}
             onAddQuestion={handleAddCustomQuestion}
             onImportMockQuestions={handleImportSpreadsheetQuestions}
             onLogout={handleLogout}
@@ -231,7 +369,7 @@ export default function App() {
               setActiveTab('tryouts');
             }}
             attempts={attempts}
-            setAttempts={setAttempts}
+            setAttempts={handleSetAttemptsByAdmin}
           />
         );
       case 'auth-student':

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExamPackage, Question, StudentAttempt, UserRegistry } from '../types';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import TryoutDashboard from './TryoutDashboard';
 
 interface StudentPortalProps {
@@ -581,6 +583,11 @@ export default function StudentPortal({
     };
 
     localStorage.setItem('katakita_current_user', JSON.stringify(updatedUser));
+
+    // Save profile update to Firestore
+    setDoc(doc(db, 'users', updatedUser.id), updatedUser).catch((err) => {
+      console.error("Firestore error saving profile update:", err);
+    });
 
     const usersStr = localStorage.getItem('katakita_users');
     if (usersStr) {
