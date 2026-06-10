@@ -1,4 +1,5 @@
 import React from 'react';
+import tryoutAkbarImage from '../assets/images/tryout_akbar_live_action_1781063573763.png';
 
 interface HomeProps {
   onStartTryout: () => void;
@@ -172,7 +173,7 @@ export default function Home({ onStartTryout, onSelectCategory }: HomeProps) {
               {/* Unique Tryout Akbar Live Action Image with Official Logo Overlay */}
               <div className="relative group overflow-hidden rounded-2xl border-2 border-white/20 shadow-2xl bg-slate-900/40 transition-all duration-300">
                 <img 
-                  src="/src/assets/images/tryout_akbar_live_action_1781063573763.png"
+                  src={tryoutAkbarImage}
                   alt="Suasana Pelaksanaan Tryout Akbar Nyaman & Kondusif"
                   className="w-full h-auto object-cover rounded-xl group-hover:scale-103 transition-all duration-700"
                   referrerPolicy="no-referrer"
