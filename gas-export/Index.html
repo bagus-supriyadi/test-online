@@ -830,6 +830,12 @@
     function syncGlobalData(isInit = false) {
       showLoader(true);
       
+      // Atur ulang pencatat waktu timeout jika sudah ada sebelumnya
+      if (window.gasTimeoutId) {
+        clearTimeout(window.gasTimeoutId);
+        window.gasTimeoutId = null;
+      }
+      
       // Deteksi jika berjalan di luar Google Apps Script (misalnya saat pratinjau lokal atau web biasa)
       if (typeof google === 'undefined' || !google.script || !google.script.run) {
         console.warn("Menjalankan dalam mode simulasi lokal (di luar Google Apps Script iframe).");
@@ -861,9 +867,44 @@
         return;
       }
       
+      // PEMULIHAN MANDIRI: Set batas tunggu deteksi hang (5 detik). Jika Google Apps Script terhambat atau memblokir akses iframe:
+      window.gasTimeoutId = setTimeout(() => {
+        console.warn("Koneksi Google Apps Script mengambil waktu lebih lama (Batas 5s tercapai). Menampilkan opsi pemulihan...");
+        
+        // Ubah visual loading
+        const loaderTitle = document.getElementById('loader-title');
+        const loaderSubtitle = document.getElementById('loader-subtitle');
+        if (loaderTitle) {
+          loaderTitle.textContent = "Koneksi Google Sheets Mengalami Hambatan...";
+          loaderTitle.classList.remove('animate-pulse');
+          loaderTitle.classList.add('text-amber-400');
+        }
+        if (loaderSubtitle) {
+          loaderSubtitle.innerHTML = "Koneksi terhenti sementara karena batasan perizinan browser atau skrip belum diaktifkan.";
+        }
+        
+        // Tampilkan error panel asisten ramah pengguna secara dinamis
+        const errorContainer = document.getElementById('loader-error-container');
+        const errorText = document.getElementById('loader-error-text');
+        if (errorContainer && errorText) {
+          errorText.innerHTML = `<strong>PILIHAN PENYELESAIAN MASALAH:</strong><br><br>` +
+            `1. <strong>Gunakan 'Mode Simulasi' di bawah</strong> untuk me-review dan mendemokan seluruh tampilan/fungsi CBT secara utuh tanpa hambatan Sheets.<br>` +
+            `2. <strong>Otorisasi Terlewat</strong>: Pastikan Anda sudah membuka skrip Anda lewat editor Apps Script, pilih fungsi <strong>'initSpreadsheet'</strong> lalu klik ▶ <strong>Jalankan (Run)</strong> untuk memberikan perizinan akun Google Anda.<br>` +
+            `3. <strong>Anti-Cookie Blocking</strong>: Pastikan browser Anda tidak dalam mode Incognito atau melarang pelacakan lintas situs (Safari / Chrome Cross-site cookie).`;
+          errorText.className = "text-[10px] text-slate-300 font-sans text-left leading-relaxed max-h-48 overflow-y-auto mb-4 p-3 bg-black/35 rounded-lg border border-amber-900/30";
+          errorContainer.classList.remove('hidden');
+        }
+      }, 5000);
+      
       // Panggil RPC GAS Backend (Code.gs) secara asinkron jika di lingkungan GAS asli
       google.script.run
         .withSuccessHandler((response) => {
+          // Batalkan pemicu timeout karena server merespon dengan sukses
+          if (window.gasTimeoutId) {
+            clearTimeout(window.gasTimeoutId);
+            window.gasTimeoutId = null;
+          }
+          
           if (response && response.success) {
             showLoader(false);
             state.users = response.users || [];
@@ -901,6 +942,12 @@
           }
         })
         .withFailureHandler((err) => {
+          // Batalkan pemicu timeout karena server merespon dengan kegagalan
+          if (window.gasTimeoutId) {
+            clearTimeout(window.gasTimeoutId);
+            window.gasTimeoutId = null;
+          }
+          
           // Sembunyikan spinner biasa & tampilkan panel error visual
           document.getElementById('loader-spinner').classList.add('hidden');
           document.getElementById('loader-title').classList.add('hidden');
