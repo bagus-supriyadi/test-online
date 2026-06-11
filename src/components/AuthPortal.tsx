@@ -67,79 +67,104 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!email || !password) {
-      setErrorMsg('Harap masukkan email/username dan kata sandi Anda!');
-      return;
-    }
+    try {
+      if (!email || !password) {
+        setErrorMsg('Harap masukkan email/username dan kata sandi Anda!');
+        return;
+      }
 
-    if (role === 'admin') {
       const emailLower = email.toLowerCase().trim();
-      const isDefaultAdmin = (emailLower === 'admin' || emailLower === 'admin@katakita.id') && password === 'admin123';
-      
-      let registeredAdmin: UserRegistry | undefined = undefined;
-      try {
-        const q = query(collection(db, 'users'), where('role', '==', 'admin'), where('email', '==', emailLower));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          registeredAdmin = snap.docs[0].data() as UserRegistry;
-        }
-      } catch (err) {
-        console.warn("Direct Firestore admin look-up failed, falling back to local registry:", err);
-      }
 
-      if (!registeredAdmin) {
-        const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
-        registeredAdmin = savedUsers.find(u => u.role === 'admin' && (u.email.toLowerCase() === emailLower || u.fullname.toLowerCase() === emailLower) && u.password === password);
-      }
-
-      if (isDefaultAdmin || (registeredAdmin && registeredAdmin.password === password)) {
-        setSuccessMsg('Masuk sebagai Administrator berhasil!');
-        const adminUser: UserRegistry = registeredAdmin || {
-          id: 'ADMIN-DEFAULT',
-          email: 'admin@katakita.id',
-          fullname: 'Administrator Pusat',
-          role: 'admin'
-        };
-        setTimeout(() => {
-          onLoginSuccess(adminUser);
-        }, 1000);
-      } else {
-        setErrorMsg('Autentikasi admin gagal! Username atau kata sandi pengajar salah.');
-      }
-    } else {
-      const emailLower = email.toLowerCase().trim();
-      let matchedUser: UserRegistry | undefined = undefined;
-
-      // Fast check from local real-time copy first
-      const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
-      matchedUser = savedUsers.find(u => u.role === 'student' && u.email.toLowerCase() === emailLower);
-
-      if (!matchedUser) {
+      if (role === 'admin') {
+        const isDefaultAdmin = (emailLower === 'admin' || emailLower === 'admin@katakita.id') && password === 'admin123';
+        
+        let registeredAdmin: UserRegistry | undefined = undefined;
         try {
-          const q = query(collection(db, 'users'), where('role', '==', 'student'), where('email', '==', emailLower));
+          const q = query(collection(db, 'users'), where('role', '==', 'admin'), where('email', '==', emailLower));
           const snap = await getDocs(q);
           if (!snap.empty) {
-            matchedUser = snap.docs[0].data() as UserRegistry;
+            registeredAdmin = snap.docs[0].data() as UserRegistry;
           }
         } catch (err) {
-          console.warn("Direct Firestore student look-up failed:", err);
+          console.warn("Direct Firestore admin look-up failed, falling back to local registry:", err);
         }
-      }
 
-      if (!matchedUser) {
-        setErrorMsg('Akun siswa belum terdaftar! Silakan daftarkan akun baru di menu pendaftaran.');
-        return;
-      }
+        let savedUsers: UserRegistry[] = [];
+        try {
+          const raw = localStorage.getItem('katakita_users');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) savedUsers = parsed;
+          }
+        } catch (jErr) {
+          savedUsers = [];
+        }
 
-      if (matchedUser.password !== password) {
-        setErrorMsg('Kata sandi salah! Harap periksa kembali penulisan karakter Anda.');
-        return;
-      }
+        if (!registeredAdmin) {
+          registeredAdmin = savedUsers.find(u => u.role === 'admin' && (u.email.toLowerCase() === emailLower || u.fullname.toLowerCase() === emailLower) && u.password === password);
+        }
 
-      setSuccessMsg(`Selamat datang kembali, ${matchedUser.fullname}!`);
-      setTimeout(() => {
-        onLoginSuccess(matchedUser);
-      }, 1000);
+        if (isDefaultAdmin || (registeredAdmin && registeredAdmin.password === password)) {
+          setSuccessMsg('Masuk sebagai Administrator berhasil!');
+          const adminUser: UserRegistry = registeredAdmin || {
+            id: 'ADMIN-DEFAULT',
+            email: 'admin@katakita.id',
+            fullname: 'Administrator Pusat',
+            role: 'admin'
+          };
+          setTimeout(() => {
+            onLoginSuccess(adminUser);
+          }, 1000);
+        } else {
+          setErrorMsg('Autentikasi admin gagal! Username atau kata sandi pengajar salah.');
+        }
+      } else {
+        let matchedUser: UserRegistry | undefined = undefined;
+
+        // Fast check from local real-time copy first
+        let savedUsers: UserRegistry[] = [];
+        try {
+          const raw = localStorage.getItem('katakita_users');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) savedUsers = parsed;
+          }
+        } catch (jErr) {
+          savedUsers = [];
+        }
+
+        matchedUser = savedUsers.find(u => u.role === 'student' && u.email.toLowerCase() === emailLower);
+
+        if (!matchedUser) {
+          try {
+            const q = query(collection(db, 'users'), where('role', '==', 'student'), where('email', '==', emailLower));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+              matchedUser = snap.docs[0].data() as UserRegistry;
+            }
+          } catch (err) {
+            console.warn("Direct Firestore student look-up failed:", err);
+          }
+        }
+
+        if (!matchedUser) {
+          setErrorMsg('Akun siswa belum terdaftar! Silakan daftarkan akun baru di menu pendaftaran.');
+          return;
+        }
+
+        if (matchedUser.password !== password) {
+          setErrorMsg('Kata sandi salah! Harap periksa kembali penulisan karakter Anda.');
+          return;
+        }
+
+        setSuccessMsg(`Selamat datang kembali, ${matchedUser.fullname}!`);
+        setTimeout(() => {
+          onLoginSuccess(matchedUser);
+        }, 1000);
+      }
+    } catch (gErr: any) {
+      console.error("Login submission error:", gErr);
+      setErrorMsg(`Kesalahan sistem saat masuk: ${gErr.message || gErr}`);
     }
   };
 
@@ -148,68 +173,95 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!fullname || !school || !email || !phone || !password || !confirmPassword) {
-      setErrorMsg('Harap lengkapi semua data pendaftaran, termasuk Asal Sekolah dan Nomor HP/WA Anda!');
-      return;
+    try {
+      if (!fullname || !school || !email || !phone || !password || !confirmPassword) {
+        setErrorMsg('Harap lengkapi semua data pendaftaran, termasuk Asal Sekolah dan Nomor HP/WA Anda!');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setErrorMsg('Konfirmasi kata sandi tidak sesuai dengan kata sandi asli!');
+        return;
+      }
+
+      if (password.length < 6) {
+        setErrorMsg('Kata sandi harus minimal berpola 6 karakter demi pengamanan data.');
+        return;
+      }
+
+      const emailLower = email.toLowerCase().trim();
+      
+      let savedUsers: UserRegistry[] = [];
+      try {
+        const raw = localStorage.getItem('katakita_users');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) savedUsers = parsed;
+        }
+      } catch (ex) {
+        savedUsers = [];
+      }
+      
+      // Fast check from local cache & real-time Firestore check
+      let isEmailTaken = savedUsers.some(u => u.email.toLowerCase() === emailLower);
+      
+      try {
+        const q = query(collection(db, 'users'), where('email', '==', emailLower));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          isEmailTaken = true;
+        }
+      } catch (err) {
+        console.warn("Firestore unique email check error:", err);
+      }
+
+      if (isEmailTaken) {
+        setErrorMsg('Alamat surel ini sudah terdaftar sebelumnya di sistem kami oleh pengguna lain.');
+        return;
+      }
+
+      // Register user with base64 Profile Image!
+      const newUser: UserRegistry = {
+        id: `USER-${Math.floor(100000 + Math.random() * 900000)}`,
+        email: emailLower,
+        fullname: fullname.trim(),
+        role: 'student', // Always enforce student role for self-registration
+        categoryInterest,
+        password,
+        photoUrl: photoUrl || undefined, // Store the uploaded Base64 image
+        phone: phone.trim(),
+        school: school.trim()
+      };
+
+      // Save directly to Firestore users collection in a completely non-blocking manner
+      await setDoc(doc(db, 'users', newUser.id), newUser);
+
+      const updatedUsers = [...savedUsers, newUser];
+      localStorage.setItem('katakita_users', JSON.stringify(updatedUsers));
+
+      setSuccessMsg('Daftar Akun Berhasil! Akun Anda aktif secara waktu-nyata.');
+      
+      // Reset forms
+      setFullname('');
+      setSchool('');
+      setEmail('');
+      setPhone('');
+      setPassword('');
+      setConfirmPassword('');
+      setPhotoUrl('');
+      setPhotoName('');
+      
+      // Log the student in directly to give them instant access!
+      setTimeout(() => {
+        onLoginSuccess(newUser);
+        setIsRegister(false);
+        setSuccessMsg('');
+      }, 1500);
+
+    } catch (err: any) {
+      console.error("Registration error details:", err);
+      setErrorMsg(`Terjadi kesalahan sistem saat mendaftar: ${err.message || err}`);
     }
-
-    if (password !== confirmPassword) {
-      setErrorMsg('Konfirmasi kata sandi tidak sesuai dengan kata sandi asli!');
-      return;
-    }
-
-    if (password.length < 6) {
-      setErrorMsg('Kata sandi harus minimal berpola 6 karakter demi pengamanan data.');
-      return;
-    }
-
-    const emailLower = email.toLowerCase().trim();
-    const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
-    
-    // Fast, ultra-reliable real-time synchronized checks from local cache snapshot replica
-    const isEmailTaken = savedUsers.some(u => u.email.toLowerCase() === emailLower);
-    if (isEmailTaken) {
-      setErrorMsg('Alamat surel ini sudah terdaftar sebelumnya di sistem kami oleh pengguna lain.');
-      return;
-    }
-
-    // Register user with base64 Profile Image!
-    const newUser: UserRegistry = {
-      id: `USER-${Math.floor(100000 + Math.random() * 900000)}`,
-      email: emailLower,
-      fullname,
-      role: 'student', // Always enforce student role for self-registration
-      categoryInterest,
-      password,
-      photoUrl: photoUrl || undefined, // Store the uploaded Base64 image
-      phone: phone.trim(),
-      school: school.trim()
-    };
-
-    // Save directly to Firestore users collection in a completely non-blocking manner
-    setDoc(doc(db, 'users', newUser.id), newUser).catch((err) => {
-      console.error("Firestore user registration failed (sync offline-first backend):", err);
-    });
-
-    const updatedUsers = [...savedUsers, newUser];
-    localStorage.setItem('katakita_users', JSON.stringify(updatedUsers));
-
-    setSuccessMsg('Daftar Akun Berhasil! Silakan masukkan email dan password yang Anda daftarkan tadi untuk masuk.');
-    
-    // Reset forms
-    setFullname('');
-    setSchool('');
-    setEmail('');
-    setPhone('');
-    setPassword('');
-    setConfirmPassword('');
-    setPhotoUrl('');
-    setPhotoName('');
-    
-    setTimeout(() => {
-      setIsRegister(false);
-      setSuccessMsg('');
-    }, 2850);
   };
 
   return (

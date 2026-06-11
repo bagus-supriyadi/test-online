@@ -71,7 +71,7 @@ export default function App() {
         }
 
         // Run once: clean up previous registration histories & attempts to start fresh as requested by user
-        const hasCleaned = localStorage.getItem('katakita_db_reset_june2026_v2');
+        const hasCleaned = localStorage.getItem('katakita_db_reset_june2026_v9');
         if (!hasCleaned) {
           console.log("Performing requested database cleanup (removing all historical student registrations and attempts)...");
           
@@ -93,8 +93,28 @@ export default function App() {
           // Complete wipe from LocalStorage
           localStorage.removeItem('katakita_student_attempts');
           localStorage.removeItem('katakita_users');
-          localStorage.setItem('katakita_db_reset_june2026_v2', 'true');
+          localStorage.removeItem('katakita_completed_subtests_v2');
+          
+          // Log out the active student if currently logged in
+          const savedSession = localStorage.getItem('katakita_current_user');
+          if (savedSession) {
+            try {
+              const parsed = JSON.parse(savedSession);
+              if (parsed && parsed.role === 'student') {
+                localStorage.removeItem('katakita_current_user');
+              }
+            } catch (e) {
+              localStorage.removeItem('katakita_current_user');
+            }
+          }
+
+          localStorage.setItem('katakita_db_reset_june2026_v9', 'true');
           console.log("Database cleanup completed successfully.");
+          
+          // Soft redirect/reload state trigger
+          setTimeout(() => {
+            window.location.reload();
+          }, 300);
         }
       } catch (err) {
         console.warn('Silent fallback: Not yet configured or seed/cleanup failed:', err);
