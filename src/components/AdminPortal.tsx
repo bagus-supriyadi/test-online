@@ -2950,11 +2950,18 @@ export default function AdminPortal({
                     SEJARAH HASIL PENGERJAAN COMPUTER-BASED TEST (CBT) SISWA
                   </span>
                   <button
-                    onClick={() => {
-                      if (safeConfirm("Apakah anda yakin membersihkan log kegiatan tryout secara permanen?")) {
+                    onClick={async () => {
+                      if (safeConfirm("Apakah anda yakin membersihkan seluruh log kegiatan tryout secara permanen dari cloud database?")) {
+                        for (const att of attempts) {
+                          try {
+                            await deleteDoc(doc(db, 'attempts', att.id));
+                          } catch (e) {
+                            console.error("Failed to delete attempt on Firestore:", e);
+                          }
+                        }
                         setAttempts([]);
                         localStorage.removeItem('katakita_student_attempts');
-                        safeAlert("Log Tryout Dikosongkan!");
+                        safeAlert("Seluruh Log Tryout Berhasil Dihapus Dari Database!");
                       }
                     }}
                     className="text-red-650 font-extrabold cursor-pointer hover:underline text-[10px] text-red-600 uppercase tracking-wider flex items-center gap-1 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-lg border border-red-200/50 shadow-2xs"
@@ -3021,10 +3028,35 @@ export default function AdminPortal({
               // REGISTERED STUDENTS SHEET COMPONENT
               // Display student registration photo + meta + password!
               <div className="space-y-4 text-left">
-                <span className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5">
-                  <i className="fa-solid fa-users-gear text-[#00705f]"></i>
-                  MODERN KARTU DATABASE REGISTRASI AKUN SISWA & KATA SANDI
-                </span>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-xs font-black uppercase text-slate-800 flex items-center gap-1.5">
+                    <i className="fa-solid fa-users-gear text-[#00705f]"></i>
+                    MODERN KARTU DATABASE REGISTRASI AKUN SISWA & KATA SANDI
+                  </span>
+                  {studentUsers.length > 0 && (
+                    <button
+                      onClick={async () => {
+                        if (safeConfirm("Apakah anda yakin menghapus SELURUH akun siswa secara permanen dari sistem online (Database & local)?")) {
+                          const studentsToDelete = studentUsers.filter(u => u.role === 'student');
+                          for (const s of studentsToDelete) {
+                            try {
+                              await deleteDoc(doc(db, 'users', s.id));
+                            } catch (e) {
+                              console.error("Failed to delete user on Firestore:", e);
+                            }
+                          }
+                          setStudentUsers(studentUsers.filter(u => u.role !== 'student'));
+                          localStorage.setItem('katakita_users', JSON.stringify(studentUsers.filter(u => u.role !== 'student')));
+                          safeAlert("Seluruh Akun Siswa Berhasil Dihapus Dari Database!");
+                        }
+                      }}
+                      className="text-red-650 font-extrabold cursor-pointer hover:underline text-[10px] text-red-600 uppercase tracking-wider flex items-center gap-1 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-lg border border-red-200/50 shadow-2xs"
+                    >
+                      <i className="fa-solid fa-trash-can text-[9px]"></i>
+                      Hapus Semua Akun Siswa
+                    </button>
+                  )}
+                </div>
 
                 {studentUsers.length === 0 ? (
                   <div className="p-8 text-center bg-white border border-dashed rounded-3xl">

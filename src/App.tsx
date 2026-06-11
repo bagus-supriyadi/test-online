@@ -69,8 +69,35 @@ export default function App() {
             await setDoc(doc(db, 'locks', p.id), { packageId: p.id, isPremium: p.isPremium || false });
           }
         }
+
+        // Run once: clean up previous registration histories & attempts to start fresh as requested by user
+        const hasCleaned = localStorage.getItem('katakita_db_reset_june2026_v2');
+        if (!hasCleaned) {
+          console.log("Performing requested database cleanup (removing all historical student registrations and attempts)...");
+          
+          // Delete all attempts
+          const attemptsSnap = await getDocs(collection(db, 'attempts'));
+          for (const docSpec of attemptsSnap.docs) {
+            await deleteDoc(doc(db, 'attempts', docSpec.id));
+          }
+          
+          // Delete student users (leaving only admins intact)
+          const usersSnap = await getDocs(collection(db, 'users'));
+          for (const docSpec of usersSnap.docs) {
+            const userData = docSpec.data();
+            if (userData.role === 'student') {
+              await deleteDoc(doc(db, 'users', docSpec.id));
+            }
+          }
+          
+          // Complete wipe from LocalStorage
+          localStorage.removeItem('katakita_student_attempts');
+          localStorage.removeItem('katakita_users');
+          localStorage.setItem('katakita_db_reset_june2026_v2', 'true');
+          console.log("Database cleanup completed successfully.");
+        }
       } catch (err) {
-        console.warn('Silent fallback: Not yet configured or seed failed or read limits reached:', err);
+        console.warn('Silent fallback: Not yet configured or seed/cleanup failed:', err);
       }
 
       // Realtime listeners

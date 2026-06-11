@@ -109,19 +109,21 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     } else {
       const emailLower = email.toLowerCase().trim();
       let matchedUser: UserRegistry | undefined = undefined;
-      try {
-        const q = query(collection(db, 'users'), where('role', '==', 'student'), where('email', '==', emailLower));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          matchedUser = snap.docs[0].data() as UserRegistry;
-        }
-      } catch (err) {
-        console.warn("Direct Firestore student look-up failed, falling back to local list:", err);
-      }
+
+      // Fast check from local real-time copy first
+      const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
+      matchedUser = savedUsers.find(u => u.role === 'student' && u.email.toLowerCase() === emailLower);
 
       if (!matchedUser) {
-        const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
-        matchedUser = savedUsers.find(u => u.role === 'student' && u.email.toLowerCase() === emailLower);
+        try {
+          const q = query(collection(db, 'users'), where('role', '==', 'student'), where('email', '==', emailLower));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            matchedUser = snap.docs[0].data() as UserRegistry;
+          }
+        } catch (err) {
+          console.warn("Direct Firestore student look-up failed:", err);
+        }
       }
 
       if (!matchedUser) {
@@ -164,21 +166,11 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     const emailLower = email.toLowerCase().trim();
     const savedUsers: UserRegistry[] = JSON.parse(localStorage.getItem('katakita_users') || '[]');
     
-    // Real-time unique email check from Firestore across all devices!
-    try {
-      const q = query(collection(db, 'users'), where('email', '==', emailLower));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        setErrorMsg('Alamat surel ini sudah terdaftar sebelumnya di sistem kami oleh pengguna lain.');
-        return;
-      }
-    } catch (err) {
-      console.warn("Firestore unique email check failed, falling back to local memory:", err);
-      const isEmailTaken = savedUsers.some(u => u.email.toLowerCase() === emailLower);
-      if (isEmailTaken) {
-        setErrorMsg('Alamat surel ini sudah terdaftar sebelumnya di sistem kami.');
-        return;
-      }
+    // Fast, ultra-reliable real-time synchronized checks from local cache snapshot replica
+    const isEmailTaken = savedUsers.some(u => u.email.toLowerCase() === emailLower);
+    if (isEmailTaken) {
+      setErrorMsg('Alamat surel ini sudah terdaftar sebelumnya di sistem kami oleh pengguna lain.');
+      return;
     }
 
     // Register user with base64 Profile Image!
@@ -186,7 +178,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
       id: `USER-${Math.floor(100000 + Math.random() * 900000)}`,
       email: emailLower,
       fullname,
-      role,
+      role: 'student', // Always enforce student role for self-registration
       categoryInterest,
       password,
       photoUrl: photoUrl || undefined, // Store the uploaded Base64 image
@@ -194,9 +186,9 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
       school: school.trim()
     };
 
-    // Save directly to Firestore users collection
-    await setDoc(doc(db, 'users', newUser.id), newUser).catch((err) => {
-      console.error("Firestore user registration failed:", err);
+    // Save directly to Firestore users collection in a completely non-blocking manner
+    setDoc(doc(db, 'users', newUser.id), newUser).catch((err) => {
+      console.error("Firestore user registration failed (sync offline-first backend):", err);
     });
 
     const updatedUsers = [...savedUsers, newUser];
@@ -217,7 +209,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     setTimeout(() => {
       setIsRegister(false);
       setSuccessMsg('');
-    }, 2800);
+    }, 2850);
   };
 
   return (
