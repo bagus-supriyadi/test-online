@@ -3,13 +3,13 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCflzDIBEgyypGrrb0yLXGMdzVDIK9Db3c",
-  authDomain: "soal-ujian-online.firebaseapp.com",
-  projectId: "soal-ujian-online",
-  storageBucket: "soal-ujian-online.firebasestorage.app",
-  messagingSenderId: "583250978894",
-  appId: "1:583250978894:web:34c41246be8a954b14fb1f",
-  measurementId: "G-V30CB7QRCX"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCflzDIBEgyypGrrb0yLXGMdzVDIK9Db3c",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "soal-ujian-online.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "soal-ujian-online",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "soal-ujian-online.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "583250978894",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:583250978894:web:34c41246be8a954b14fb1f",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-V30CB7QRCX"
 };
 
 // Initialize Firebase

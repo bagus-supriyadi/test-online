@@ -34,6 +34,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
   // Status flags
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const tryoutCategories = [
     "UTBK SNBT", "Kedinasan", "CPNS", "TNI / Polri", 
@@ -66,10 +67,12 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+    setIsSubmitting(true);
 
     try {
       if (!email || !password) {
         setErrorMsg('Harap masukkan email/username dan kata sandi Anda!');
+        setIsSubmitting(false);
         return;
       }
 
@@ -112,11 +115,13 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
             fullname: 'Administrator Pusat',
             role: 'admin'
           };
+          setIsSubmitting(false);
           setTimeout(() => {
             onLoginSuccess(adminUser);
           }, 1000);
         } else {
           setErrorMsg('Autentikasi admin gagal! Username atau kata sandi pengajar salah.');
+          setIsSubmitting(false);
         }
       } else {
         let matchedUser: UserRegistry | undefined = undefined;
@@ -149,15 +154,18 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
 
         if (!matchedUser) {
           setErrorMsg('Akun siswa belum terdaftar! Silakan daftarkan akun baru di menu pendaftaran.');
+          setIsSubmitting(false);
           return;
         }
 
         if (matchedUser.password !== password) {
           setErrorMsg('Kata sandi salah! Harap periksa kembali penulisan karakter Anda.');
+          setIsSubmitting(false);
           return;
         }
 
         setSuccessMsg(`Selamat datang kembali, ${matchedUser.fullname}!`);
+        setIsSubmitting(false);
         setTimeout(() => {
           onLoginSuccess(matchedUser);
         }, 1000);
@@ -165,6 +173,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     } catch (gErr: any) {
       console.error("Login submission error:", gErr);
       setErrorMsg(`Kesalahan sistem saat masuk: ${gErr.message || gErr}`);
+      setIsSubmitting(false);
     }
   };
 
@@ -172,20 +181,24 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+    setIsSubmitting(true);
 
     try {
       if (!fullname || !school || !email || !phone || !password || !confirmPassword) {
         setErrorMsg('Harap lengkapi semua data pendaftaran, termasuk Asal Sekolah dan Nomor HP/WA Anda!');
+        setIsSubmitting(false);
         return;
       }
 
       if (password !== confirmPassword) {
         setErrorMsg('Konfirmasi kata sandi tidak sesuai dengan kata sandi asli!');
+        setIsSubmitting(false);
         return;
       }
 
       if (password.length < 6) {
         setErrorMsg('Kata sandi harus minimal berpola 6 karakter demi pengamanan data.');
+        setIsSubmitting(false);
         return;
       }
 
@@ -217,6 +230,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
 
       if (isEmailTaken) {
         setErrorMsg('Alamat surel ini sudah terdaftar sebelumnya di sistem kami oleh pengguna lain.');
+        setIsSubmitting(false);
         return;
       }
 
@@ -233,13 +247,17 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
         school: school.trim()
       };
 
-      // Save directly to Firestore users collection in a completely non-blocking manner
-      await setDoc(doc(db, 'users', newUser.id), newUser);
-
+      // Save to local storage cache snapshot instantly so the app acts offline-first
       const updatedUsers = [...savedUsers, newUser];
       localStorage.setItem('katakita_users', JSON.stringify(updatedUsers));
 
-      setSuccessMsg('Daftar Akun Berhasil! Akun Anda aktif secara waktu-nyata.');
+      // Sync non-blockingly to Firebase Firestore in background to bypass network lagging or iframe sandboxing
+      setDoc(doc(db, 'users', newUser.id), newUser).catch((err) => {
+        console.warn("Firestore sync will complete in backround / retry offline:", err);
+      });
+
+      setSuccessMsg('Daftar Akun Berhasil! Akun pendaftaran Anda telah aktif.');
+      setIsSubmitting(false);
       
       // Reset forms
       setFullname('');
@@ -261,6 +279,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
     } catch (err: any) {
       console.error("Registration error details:", err);
       setErrorMsg(`Terjadi kesalahan sistem saat mendaftar: ${err.message || err}`);
+      setIsSubmitting(false);
     }
   };
 
@@ -336,6 +355,48 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
           </p>
         </div>
 
+        {/* Dynamic Inner Dual Sub-tabs for Student (Makes Registration 100% Discoverable & Clickable) */}
+        {role === 'student' && (
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200" id="student-sub-tabs-container">
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => {
+                setIsRegister(false);
+                setErrorMsg('');
+                setSuccessMsg('');
+              }}
+              className={`flex-1 py-2.5 text-center font-extrabold text-xs uppercase tracking-wider transition-all rounded-xl cursor-pointer ${
+                !isRegister
+                  ? 'bg-[#00705f] text-white shadow-md'
+                  : 'text-slate-500 hover:text-slate-800'
+              } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              id="student-sub-tab-login"
+            >
+              <i className="fa-solid fa-right-to-bracket mr-1.5"></i>
+              <span>Masuk (Login)</span>
+            </button>
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => {
+                setIsRegister(true);
+                setErrorMsg('');
+                setSuccessMsg('');
+              }}
+              className={`flex-1 py-2.5 text-center font-extrabold text-xs uppercase tracking-wider transition-all rounded-xl cursor-pointer ${
+                isRegister
+                  ? 'bg-gradient-to-r from-orange-500 to-rose-600 text-white shadow-md'
+                  : 'text-slate-500 hover:text-slate-800'
+              } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              id="student-sub-tab-register"
+            >
+              <i className="fa-solid fa-user-plus mr-1.5"></i>
+              <span>Daftar Baru</span>
+            </button>
+          </div>
+        )}
+
         {/* Alerts status */}
         {errorMsg && (
           <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded-lg text-xs font-semibold text-red-700 flex items-start space-x-1.5 animate-pulse" id="auth-error-alert">
@@ -365,6 +426,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                 placeholder={role === 'admin' ? "Username admin" : "nama.siswa@gamil.com"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={isSubmitting}
                 className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 shadow-inner"
                 required
               />
@@ -383,11 +445,13 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                   placeholder="******"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isSubmitting}
                   className="w-full pl-4 pr-10 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 shadow-inner"
                   required
                 />
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer focus:outline-none"
                   tabIndex={-1}
@@ -399,14 +463,24 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
 
             <button
               type="submit"
-              className={`w-full py-3 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all hover:scale-[1.01] cursor-pointer flex items-center justify-center space-x-2 ${
+              disabled={isSubmitting}
+              className={`w-full py-3 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all hover:scale-[1.01] active:scale-95 cursor-pointer flex items-center justify-center space-x-2 ${
                 role === 'admin' 
                   ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-900/15' 
                   : 'bg-[#00705f] hover:bg-[#005a4d] shadow-teal-900/15'
-              }`}
+              } ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              <i className="fa-solid fa-right-to-bracket text-xs"></i>
-              <span>Masuk Sekarang</span>
+              {isSubmitting ? (
+                <>
+                  <i className="fa-solid fa-circle-notch animate-spin text-xs"></i>
+                  <span>Memproses Masuk...</span>
+                </>
+              ) : (
+                <>
+                  <i className="fa-solid fa-right-to-bracket text-xs"></i>
+                  <span>Masuk Sekarang</span>
+                </>
+              )}
             </button>
           </form>
         ) : (
@@ -420,7 +494,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
               </span>
               
               <div 
-                onClick={handlePhotoClick}
+                onClick={isSubmitting ? undefined : handlePhotoClick}
                 className="relative w-24 h-24 rounded-full border-4 border-white ring-4 ring-orange-500/20 hover:ring-orange-500/40 bg-white flex flex-col items-center justify-center cursor-pointer overflow-hidden group transition-all shadow-md"
                 title="Pilih file foto dari perangkat Anda"
               >
@@ -436,9 +510,11 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                     <span className="text-[8px] font-black uppercase tracking-widest leading-none mt-1">Unggah Foto</span>
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-[8px] font-black uppercase tracking-wide">
-                  Ubah Foto
-                </div>
+                {!isSubmitting && (
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-[8px] font-black uppercase tracking-wide">
+                    Ubah Foto
+                  </div>
+                )}
               </div>
 
               <input 
@@ -446,6 +522,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                 ref={fileInputRef}
                 onChange={handlePhotoChange}
                 accept="image/*"
+                disabled={isSubmitting}
                 className="hidden"
               />
 
@@ -470,6 +547,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                 placeholder="Nama Lengkap Berdasarkan Ijazah/Identitas"
                 value={fullname}
                 onChange={(e) => setFullname(e.target.value)}
+                disabled={isSubmitting}
                 className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 focus:bg-white"
                 required
               />
@@ -485,6 +563,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                 placeholder="Contoh: SMAN 1 Jakarta"
                 value={school}
                 onChange={(e) => setSchool(e.target.value)}
+                disabled={isSubmitting}
                 className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 focus:bg-white"
                 required
               />
@@ -500,6 +579,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                 placeholder="e.g. 081234567890"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                disabled={isSubmitting}
                 className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 focus:bg-white"
                 required
               />
@@ -515,6 +595,7 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                 placeholder="kontak@gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={isSubmitting}
                 className="w-full px-4 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 focus:bg-white"
                 required
               />
@@ -531,11 +612,13 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                   placeholder="Min. 6 karakter"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={isSubmitting}
                   className="w-full pl-4 pr-10 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 focus:bg-white"
                   required
                 />
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer focus:outline-none"
                   tabIndex={-1}
@@ -556,11 +639,13 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
                   placeholder="Ketik ulang kata sandi"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
+                  disabled={isSubmitting}
                   className="w-full pl-4 pr-10 py-2.5 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-xl text-xs text-slate-700 focus:outline-none bg-slate-50 focus:bg-white"
                   required
                 />
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs cursor-pointer focus:outline-none"
                   tabIndex={-1}
@@ -572,10 +657,20 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
 
             <button
               type="submit"
-              className="w-full py-3.5 bg-gradient-to-r from-[#00705f] via-[#005a4d] to-orange-500 hover:opacity-95 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-teal-900/20 hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center justify-center space-x-1.5"
+              disabled={isSubmitting}
+              className={`w-full py-3.5 bg-gradient-to-r from-[#00705f] via-[#005a4d] to-orange-500 hover:opacity-95 text-white font-extrabold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-teal-900/20 hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              <i className="fa-solid fa-user-plus text-xs"></i>
-              <span>Daftar Akun Baru</span>
+              {isSubmitting ? (
+                <>
+                  <i className="fa-solid fa-circle-notch animate-spin text-xs"></i>
+                  <span>Sedang Mendaftarkan...</span>
+                </>
+              ) : (
+                <>
+                  <i className="fa-solid fa-user-plus text-xs"></i>
+                  <span>Daftar Akun Baru</span>
+                </>
+              )}
             </button>
           </form>
         )}
@@ -587,12 +682,14 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
               <p className="text-slate-500">
                 Belum mendaftarkan akun siswa?{' '}
                 <button
+                  type="button"
+                  disabled={isSubmitting}
                   onClick={() => {
                     setIsRegister(true);
                     setErrorMsg('');
                     setSuccessMsg('');
                   }}
-                  className="text-blue-600 hover:underline font-extrabold cursor-pointer inline"
+                  className={`text-blue-600 hover:underline font-extrabold cursor-pointer inline ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   Daftar Akun Baru
                 </button>
@@ -601,12 +698,14 @@ export default function AuthPortal({ onLoginSuccess, initialRole = 'student', on
               <p className="text-slate-500">
                 Sudah memiliki akun pendaftaran?{' '}
                 <button
+                  type="button"
+                  disabled={isSubmitting}
                   onClick={() => {
                     setIsRegister(false);
                     setErrorMsg('');
                     setSuccessMsg('');
                   }}
-                  className="text-blue-600 hover:underline font-extrabold cursor-pointer inline"
+                  className={`text-blue-600 hover:underline font-extrabold cursor-pointer inline ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   Masuk Sekarang
                 </button>

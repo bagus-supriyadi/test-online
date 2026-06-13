@@ -217,6 +217,17 @@ export default function AdminPortal({
       localStorage.setItem('katakita_settings_banner', landingBannerText);
       localStorage.setItem('katakita_settings_slogan', landingBannerSlogan);
       
+      // Real-time complete sync backup upload to Firestore Cloud DB
+      questions.forEach(q => {
+        setDoc(doc(db, 'questions', q.id), q).catch(err => console.warn("Sync questions failed:", err));
+      });
+      packages.forEach(p => {
+        setDoc(doc(db, 'packages', p.id), p).catch(err => console.warn("Sync packages failed:", err));
+      });
+      studentUsers.forEach(u => {
+        setDoc(doc(db, 'users', u.id), u).catch(err => console.warn("Sync users failed:", err));
+      });
+
       syncAdminDetails();
 
       // Trigger state updates to propagate changes across components
@@ -289,6 +300,7 @@ export default function AdminPortal({
         const updatedPkgs = [...packages, newPkg];
         setPackages(updatedPkgs);
         localStorage.setItem('katakita_packages', JSON.stringify(updatedPkgs));
+        setDoc(doc(db, 'packages', newPkg.id), newPkg).catch(err => console.error("Firestore package sync error:", err));
       }
       targetSubest = customSubTestInput || 'Subtest Umum';
     }
@@ -311,12 +323,15 @@ export default function AdminPortal({
     const updatedQs = [...questions, newQ];
     setQuestions(updatedQs);
     localStorage.setItem('katakita_questions', JSON.stringify(updatedQs));
+    setDoc(doc(db, 'questions', newQ.id), newQ).catch(err => console.error("Firestore question sync error:", err));
 
     // Also increment package totals
     setPackages(prev => {
       const u = prev.map(p => {
         if (p.id === finalPkgId) {
-          return { ...p, totalQuestions: p.totalQuestions + 1 };
+          const updatedPkg = { ...p, totalQuestions: p.totalQuestions + 1 };
+          setDoc(doc(db, 'packages', p.id), updatedPkg).catch(err => console.error("Firestore package update error:", err));
+          return updatedPkg;
         }
         return p;
       });
@@ -428,15 +443,23 @@ export default function AdminPortal({
       return;
     }
 
-    const updatedQs = [...questions, ...parsedBatchQuestions.map(q => ({ ...q, isPublished: publish }))];
+    const finalizedQs = parsedBatchQuestions.map(q => ({ ...q, isPublished: publish }));
+    const updatedQs = [...questions, ...finalizedQs];
     setQuestions(updatedQs);
     localStorage.setItem('katakita_questions', JSON.stringify(updatedQs));
+
+    // Sync newly imported chunk of questions directly to Firestore in an offline-friendly parallel manner
+    finalizedQs.forEach(q => {
+      setDoc(doc(db, 'questions', q.id), q).catch(err => console.error("Batch question sync failed:", err));
+    });
 
     // Increments questions metrics on the packages
     setPackages(prev => {
       const updatedPkgs = prev.map(p => {
         if (p.id === batchPkgId) {
-          return { ...p, totalQuestions: p.totalQuestions + parsedBatchQuestions.length };
+          const updatedPkg = { ...p, totalQuestions: p.totalQuestions + parsedBatchQuestions.length };
+          setDoc(doc(db, 'packages', p.id), updatedPkg).catch(err => console.error("Batch package sync failed:", err));
+          return updatedPkg;
         }
         return p;
       });
@@ -512,6 +535,7 @@ export default function AdminPortal({
     const nextPkgs = [...packages, newPkg];
     setPackages(nextPkgs);
     localStorage.setItem('katakita_packages', JSON.stringify(nextPkgs));
+    setDoc(doc(db, 'packages', newPkg.id), newPkg).catch(err => console.error("Firestore sync error:", err));
 
     alert("Sukses Menyimpan Konfigurasi Paket Ujian Baru!");
     
@@ -563,7 +587,7 @@ export default function AdminPortal({
     setPackages(prev => {
       const u = prev.map(p => {
         if (p.id === editingPackageId) {
-          return {
+          const updatedPkg = {
             ...p,
             name: editPkgName,
             category: editPkgCategory,
@@ -572,6 +596,8 @@ export default function AdminPortal({
             subExamsConfig: configMap,
             totalDurationMinutes: editPkgSubtests.reduce((acc, curr) => acc + curr.dur, 0)
           };
+          setDoc(doc(db, 'packages', p.id), updatedPkg).catch(err => console.error("Package sync error:", err));
+          return updatedPkg;
         }
         return p;
       });
@@ -592,6 +618,12 @@ export default function AdminPortal({
       const restQs = questions.filter(q => q.examId !== pkgId);
       setQuestions(restQs);
       localStorage.setItem('katakita_questions', JSON.stringify(restQs));
+
+      // Sync deletions to Firestore Cloud DB
+      deleteDoc(doc(db, 'packages', pkgId)).catch(err => console.error("Firestore delete package failed:", err));
+      questions.filter(q => q.examId === pkgId).forEach(q => {
+        deleteDoc(doc(db, 'questions', q.id)).catch(err => console.error("Firestore delete question failed:", err));
+      });
 
       if (dbSelectedPkg === pkgId && restPkgs.length > 0) {
         setDbSelectedPkg(restPkgs[0].id);
@@ -628,7 +660,7 @@ export default function AdminPortal({
     setQuestions(prev => {
       const u = prev.map(q => {
         if (q.id === editingQuestionId) {
-          return {
+          const updatedQ = {
             ...q,
             questionText: editQText,
             questionImage: editQImage || undefined,
@@ -639,6 +671,8 @@ export default function AdminPortal({
             correctOption: editQCorrect,
             explanation: editQExplanation
           };
+          setDoc(doc(db, 'questions', q.id), updatedQ).catch(err => console.error("Firestore save question failed:", err));
+          return updatedQ;
         }
         return q;
       });
@@ -655,6 +689,7 @@ export default function AdminPortal({
       const rest = questions.filter(q => q.id !== qId);
       setQuestions(rest);
       localStorage.setItem('katakita_questions', JSON.stringify(rest));
+      deleteDoc(doc(db, 'questions', qId)).catch(err => console.error("Firestore delete question failed:", err));
     }
   };
 
@@ -662,7 +697,9 @@ export default function AdminPortal({
     setQuestions(prev => {
       const u = prev.map(q => {
         if (q.id === qId) {
-          return { ...q, isPublished: !q.isPublished };
+          const updatedQ = { ...q, isPublished: !q.isPublished };
+          setDoc(doc(db, 'questions', q.id), updatedQ).catch(err => console.error("Firestore toggle publish failed:", err));
+          return updatedQ;
         }
         return q;
       });
@@ -2578,6 +2615,9 @@ export default function AdminPortal({
                         const next = prev.filter(q => !(q.examId === dbSelectedPkg && (dbSelectedSubtest === 'ALL' || q.subExamName === dbSelectedSubtest)));
                         localStorage.setItem('katakita_questions', JSON.stringify(next));
                         return next;
+                      });
+                      filteredQs.forEach(q => {
+                        deleteDoc(doc(db, 'questions', q.id)).catch(err => console.error("Firestore clear filtered questions failed:", err));
                       });
                       alert("Semua soal terpilih berhasil dihapus!");
                     }
